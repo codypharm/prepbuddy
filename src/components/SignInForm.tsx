@@ -1,18 +1,30 @@
-import React, { useState, useEffect } from 'react';
-import { Mail, Lock, Eye, EyeOff, ArrowRight, Sparkles, AlertCircle, CheckCircle } from 'lucide-react';
-import { useAuth } from '../hooks/useAuth';
-import { supabase } from '../lib/supabase';
+import React, { useState, useEffect } from "react";
+import {
+  Mail,
+  Lock,
+  Eye,
+  EyeOff,
+  ArrowRight,
+  Sparkles,
+  AlertCircle,
+  CheckCircle,
+} from "lucide-react";
+import { useAuth } from "../hooks/useAuth";
+import { supabase } from "../lib/supabase";
 
 interface SignInFormProps {
   onSwitchToSignUp: () => void;
   onClose: () => void;
 }
 
-const SignInForm: React.FC<SignInFormProps> = ({ onSwitchToSignUp, onClose }) => {
+const SignInForm: React.FC<SignInFormProps> = ({
+  onSwitchToSignUp,
+  onClose,
+}) => {
   const { signIn, isLoading, error, clearError } = useAuth();
   const [formData, setFormData] = useState({
-    email: 'williamikeji@gmail.com', // Updated to match signup page
-    password: 'password123', // Default for development
+    email: "", // Updated to match signup page
+    password: "", // Default for development
   });
   const [showPassword, setShowPassword] = useState(false);
   const [resetPasswordMode, setResetPasswordMode] = useState(false);
@@ -29,10 +41,10 @@ const SignInForm: React.FC<SignInFormProps> = ({ onSwitchToSignUp, onClose }) =>
     e.preventDefault();
     try {
       if (clearError) clearError();
-      
+
       // Store email in localStorage for verification error handling
-      localStorage.setItem('auth_email', formData.email);
-      
+      localStorage.setItem("auth_email", formData.email);
+
       await signIn(formData.email, formData.password);
       // The modal will be closed automatically by the useEffect in AuthModal
       // when isAuthenticated becomes true
@@ -44,11 +56,11 @@ const SignInForm: React.FC<SignInFormProps> = ({ onSwitchToSignUp, onClose }) =>
   const handleQuickDemo = async () => {
     try {
       if (clearError) clearError();
-      
+
       // Store email in localStorage for verification error handling
-      localStorage.setItem('auth_email', 'williamikeji@gmail.com');
-      
-      await signIn('williamikeji@gmail.com', 'password123');
+      localStorage.setItem("auth_email", "williamikeji@gmail.com");
+
+      await signIn("williamikeji@gmail.com", "password123");
       // The modal will be closed automatically by the useEffect in AuthModal
       // when isAuthenticated becomes true
     } catch (error) {
@@ -58,24 +70,27 @@ const SignInForm: React.FC<SignInFormProps> = ({ onSwitchToSignUp, onClose }) =>
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.email) {
       return;
     }
-    
+
     try {
       if (clearError) clearError();
-      
+
       // Call Supabase reset password
-      const { error } = await supabase.auth.resetPasswordForEmail(formData.email, {
-        redirectTo: `${window.location.origin}/reset-password`,
-      });
-      
+      const { error } = await supabase.auth.resetPasswordForEmail(
+        formData.email,
+        {
+          redirectTo: `${window.location.origin}/reset-password`,
+        },
+      );
+
       if (error) throw error;
-      
+
       setResetSent(true);
     } catch (error: any) {
-      console.error('Reset password error:', error);
+      console.error("Reset password error:", error);
     }
   };
 
@@ -87,9 +102,12 @@ const SignInForm: React.FC<SignInFormProps> = ({ onSwitchToSignUp, onClose }) =>
           <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <Mail className="h-8 w-8 text-blue-600" />
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Reset Your Password</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            Reset Your Password
+          </h2>
           <p className="text-gray-600">
-            Enter your email address and we'll send you a link to reset your password
+            Enter your email address and we'll send you a link to reset your
+            password
           </p>
         </div>
 
@@ -102,7 +120,8 @@ const SignInForm: React.FC<SignInFormProps> = ({ onSwitchToSignUp, onClose }) =>
                   <strong>Reset link sent!</strong>
                 </p>
                 <p className="text-green-700 text-sm">
-                  Please check your email and follow the instructions to reset your password.
+                  Please check your email and follow the instructions to reset
+                  your password.
                 </p>
               </div>
             </div>
@@ -118,7 +137,9 @@ const SignInForm: React.FC<SignInFormProps> = ({ onSwitchToSignUp, onClose }) =>
                 <input
                   type="email"
                   value={formData.email}
-                  onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, email: e.target.value }))
+                  }
                   className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="Enter your email"
                   required
@@ -137,9 +158,7 @@ const SignInForm: React.FC<SignInFormProps> = ({ onSwitchToSignUp, onClose }) =>
                   Sending...
                 </>
               ) : (
-                <>
-                  Send Reset Link
-                </>
+                <>Send Reset Link</>
               )}
             </button>
           </form>
@@ -164,10 +183,12 @@ const SignInForm: React.FC<SignInFormProps> = ({ onSwitchToSignUp, onClose }) =>
           <Sparkles className="h-8 w-8 text-white" />
         </div>
         <h2 className="text-2xl font-bold text-gray-900 mb-2">Welcome Back!</h2>
-        <p className="text-gray-600">Sign in to continue your learning journey</p>
+        <p className="text-gray-600">
+          Sign in to continue your learning journey
+        </p>
       </div>
 
-      {error && !error.includes('Email not confirmed') && (
+      {error && !error.includes("Email not confirmed") && (
         <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
           <div className="flex items-start">
             <AlertCircle className="h-5 w-5 text-red-600 mt-0.5 mr-2" />
@@ -186,7 +207,9 @@ const SignInForm: React.FC<SignInFormProps> = ({ onSwitchToSignUp, onClose }) =>
             <input
               type="email"
               value={formData.email}
-              onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, email: e.target.value }))
+              }
               className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="Enter your email"
               required
@@ -201,9 +224,11 @@ const SignInForm: React.FC<SignInFormProps> = ({ onSwitchToSignUp, onClose }) =>
           <div className="relative">
             <Lock className="h-5 w-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
             <input
-              type={showPassword ? 'text' : 'password'}
+              type={showPassword ? "text" : "password"}
               value={formData.password}
-              onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, password: e.target.value }))
+              }
               className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="Enter your password"
               required
@@ -213,18 +238,25 @@ const SignInForm: React.FC<SignInFormProps> = ({ onSwitchToSignUp, onClose }) =>
               onClick={() => setShowPassword(!showPassword)}
               className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
             >
-              {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+              {showPassword ? (
+                <EyeOff className="h-5 w-5" />
+              ) : (
+                <Eye className="h-5 w-5" />
+              )}
             </button>
           </div>
         </div>
 
         <div className="flex items-center justify-between">
           <label className="flex items-center">
-            <input type="checkbox" className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+            <input
+              type="checkbox"
+              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
             <span className="ml-2 text-sm text-gray-600">Remember me</span>
           </label>
-          <button 
-            type="button" 
+          <button
+            type="button"
             className="text-sm text-blue-600 hover:text-blue-700"
             onClick={() => setResetPasswordMode(true)}
           >
@@ -252,13 +284,15 @@ const SignInForm: React.FC<SignInFormProps> = ({ onSwitchToSignUp, onClose }) =>
       </form>
 
       {/* Quick Demo Button for Development */}
-      <div className="mt-6">
+      {/* <div className="mt-6">
         <div className="relative">
           <div className="absolute inset-0 flex items-center">
             <div className="w-full border-t border-gray-300" />
           </div>
           <div className="relative flex justify-center text-sm">
-            <span className="px-2 bg-white text-gray-500">Development Mode</span>
+            <span className="px-2 bg-white text-gray-500">
+              Development Mode
+            </span>
           </div>
         </div>
         <button
@@ -268,11 +302,11 @@ const SignInForm: React.FC<SignInFormProps> = ({ onSwitchToSignUp, onClose }) =>
         >
           🚀 Quick Demo Access
         </button>
-      </div>
+      </div> */}
 
       <div className="mt-6 text-center">
         <p className="text-gray-600">
-          Don't have an account?{' '}
+          Don't have an account?{" "}
           <button
             onClick={onSwitchToSignUp}
             className="text-blue-600 hover:text-blue-700 font-medium"

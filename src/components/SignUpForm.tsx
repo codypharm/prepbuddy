@@ -1,19 +1,32 @@
-import React, { useState, useEffect } from 'react';
-import { Mail, Lock, User, Eye, EyeOff, ArrowRight, Sparkles, CheckCircle, AlertCircle } from 'lucide-react';
-import { useAuth } from '../hooks/useAuth';
+import React, { useState, useEffect } from "react";
+import {
+  Mail,
+  Lock,
+  User,
+  Eye,
+  EyeOff,
+  ArrowRight,
+  Sparkles,
+  CheckCircle,
+  AlertCircle,
+} from "lucide-react";
+import { useAuth } from "../hooks/useAuth";
 
 interface SignUpFormProps {
   onSwitchToSignIn: () => void;
   onClose: () => void;
 }
 
-const SignUpForm: React.FC<SignUpFormProps> = ({ onSwitchToSignIn, onClose }) => {
+const SignUpForm: React.FC<SignUpFormProps> = ({
+  onSwitchToSignIn,
+  onClose,
+}) => {
   const { signUp, isLoading, error, clearError } = useAuth();
   const [formData, setFormData] = useState({
-    name: 'William Ikeji', // Default for development
-    email: 'williamikeji@gmail.com', // Updated email
-    password: 'password123', // Default for development
-    confirmPassword: 'password123', // Default for development
+    name: "", // Default for development
+    email: "", // Updated email
+    password: "", // Default for development
+    confirmPassword: "", // Default for development
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -30,39 +43,49 @@ const SignUpForm: React.FC<SignUpFormProps> = ({ onSwitchToSignIn, onClose }) =>
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Clear any previous errors
     if (clearError) clearError();
     setFormError(null);
-    
+
     if (formData.password !== formData.confirmPassword) {
       setFormError("Passwords do not match");
       return;
     }
-    
+
     if (!acceptTerms) {
       setFormError("You must accept the Terms of Service and Privacy Policy");
       return;
     }
-    
+
     try {
       // Store email in localStorage for verification error handling
-      localStorage.setItem('auth_email', formData.email);
-      
+      localStorage.setItem("auth_email", formData.email);
+
       await signUp(formData.email, formData.password, formData.name);
-      
+
       // Show verification message instead of closing modal
       setVerificationSent(true);
     } catch (error: any) {
       // Error is handled by the auth hook, but we can add additional handling here
-      if (error.message?.includes('already exists') || error.message?.includes('already registered')) {
-        setFormError(`An account with email ${formData.email} already exists. Please sign in instead.`);
+      if (
+        error.message?.includes("already exists") ||
+        error.message?.includes("already registered")
+      ) {
+        setFormError(
+          `An account with email ${formData.email} already exists. Please sign in instead.`,
+        );
       }
     }
   };
 
   const passwordsMatch = formData.password === formData.confirmPassword;
-  const isFormValid = formData.name && formData.email && formData.password && passwordsMatch && acceptTerms;
+  const isFormValid =
+    formData.name &&
+    formData.email &&
+    formData.password &&
+    passwordsMatch &&
+    acceptTerms;
 
   // If verification email was sent, show success message
   if (verificationSent) {
@@ -72,7 +95,9 @@ const SignUpForm: React.FC<SignUpFormProps> = ({ onSwitchToSignIn, onClose }) =>
           <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <CheckCircle className="h-8 w-8 text-green-600" />
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Check Your Email</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            Check Your Email
+          </h2>
           <p className="text-gray-600">
             We've sent a verification link to <strong>{formData.email}</strong>
           </p>
@@ -83,7 +108,8 @@ const SignUpForm: React.FC<SignUpFormProps> = ({ onSwitchToSignIn, onClose }) =>
             <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5 mr-2" />
             <div>
               <p className="text-blue-800 text-sm mb-2">
-                <strong>Important:</strong> Please check your email and click the verification link to complete your registration.
+                <strong>Important:</strong> Please check your email and click
+                the verification link to complete your registration.
               </p>
               <p className="text-blue-700 text-sm">
                 If you don't see the email, check your spam folder.
@@ -99,7 +125,7 @@ const SignUpForm: React.FC<SignUpFormProps> = ({ onSwitchToSignIn, onClose }) =>
           >
             Back to Sign In
           </button>
-          
+
           <button
             onClick={onClose}
             className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
@@ -117,8 +143,12 @@ const SignUpForm: React.FC<SignUpFormProps> = ({ onSwitchToSignIn, onClose }) =>
         <div className="w-16 h-16 bg-gradient-to-r from-green-600 to-teal-600 rounded-full flex items-center justify-center mx-auto mb-4">
           <Sparkles className="h-8 w-8 text-white" />
         </div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Join PrepBuddy!</h2>
-        <p className="text-gray-600">Create your account and start learning with AI</p>
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">
+          Join PrepBuddy!
+        </h2>
+        <p className="text-gray-600">
+          Create your account and start learning with AI
+        </p>
       </div>
 
       {(error || formError) && (
@@ -137,7 +167,9 @@ const SignUpForm: React.FC<SignUpFormProps> = ({ onSwitchToSignIn, onClose }) =>
             <input
               type="text"
               value={formData.name}
-              onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, name: e.target.value }))
+              }
               className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
               placeholder="Enter your full name"
               required
@@ -154,7 +186,9 @@ const SignUpForm: React.FC<SignUpFormProps> = ({ onSwitchToSignIn, onClose }) =>
             <input
               type="email"
               value={formData.email}
-              onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, email: e.target.value }))
+              }
               className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
               placeholder="Enter your email"
               required
@@ -169,9 +203,11 @@ const SignUpForm: React.FC<SignUpFormProps> = ({ onSwitchToSignIn, onClose }) =>
           <div className="relative">
             <Lock className="h-5 w-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
             <input
-              type={showPassword ? 'text' : 'password'}
+              type={showPassword ? "text" : "password"}
               value={formData.password}
-              onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, password: e.target.value }))
+              }
               className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
               placeholder="Create a password"
               required
@@ -181,7 +217,11 @@ const SignUpForm: React.FC<SignUpFormProps> = ({ onSwitchToSignIn, onClose }) =>
               onClick={() => setShowPassword(!showPassword)}
               className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
             >
-              {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+              {showPassword ? (
+                <EyeOff className="h-5 w-5" />
+              ) : (
+                <Eye className="h-5 w-5" />
+              )}
             </button>
           </div>
         </div>
@@ -193,15 +233,20 @@ const SignUpForm: React.FC<SignUpFormProps> = ({ onSwitchToSignIn, onClose }) =>
           <div className="relative">
             <Lock className="h-5 w-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
             <input
-              type={showConfirmPassword ? 'text' : 'password'}
+              type={showConfirmPassword ? "text" : "password"}
               value={formData.confirmPassword}
-              onChange={(e) => setFormData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+              onChange={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  confirmPassword: e.target.value,
+                }))
+              }
               className={`w-full pl-10 pr-12 py-3 border rounded-lg focus:ring-2 focus:border-transparent ${
                 formData.confirmPassword && passwordsMatch
-                  ? 'border-green-300 focus:ring-green-500'
+                  ? "border-green-300 focus:ring-green-500"
                   : formData.confirmPassword && !passwordsMatch
-                  ? 'border-red-300 focus:ring-red-500'
-                  : 'border-gray-300 focus:ring-green-500'
+                    ? "border-red-300 focus:ring-red-500"
+                    : "border-gray-300 focus:ring-green-500"
               }`}
               placeholder="Confirm your password"
               required
@@ -211,7 +256,11 @@ const SignUpForm: React.FC<SignUpFormProps> = ({ onSwitchToSignIn, onClose }) =>
               onClick={() => setShowConfirmPassword(!showConfirmPassword)}
               className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
             >
-              {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+              {showConfirmPassword ? (
+                <EyeOff className="h-5 w-5" />
+              ) : (
+                <Eye className="h-5 w-5" />
+              )}
             </button>
           </div>
           {formData.confirmPassword && !passwordsMatch && (
@@ -233,12 +282,18 @@ const SignUpForm: React.FC<SignUpFormProps> = ({ onSwitchToSignIn, onClose }) =>
             className="rounded border-gray-300 text-green-600 focus:ring-green-500 mt-1"
           />
           <label className="ml-2 text-sm text-gray-600">
-            I agree to the{' '}
-            <button type="button" className="text-green-600 hover:text-green-700">
+            I agree to the{" "}
+            <button
+              type="button"
+              className="text-green-600 hover:text-green-700"
+            >
               Terms of Service
-            </button>{' '}
-            and{' '}
-            <button type="button" className="text-green-600 hover:text-green-700">
+            </button>{" "}
+            and{" "}
+            <button
+              type="button"
+              className="text-green-600 hover:text-green-700"
+            >
               Privacy Policy
             </button>
           </label>
@@ -265,7 +320,7 @@ const SignUpForm: React.FC<SignUpFormProps> = ({ onSwitchToSignIn, onClose }) =>
 
       <div className="mt-6 text-center">
         <p className="text-gray-600">
-          Already have an account?{' '}
+          Already have an account?{" "}
           <button
             onClick={onSwitchToSignIn}
             className="text-green-600 hover:text-green-700 font-medium"
@@ -278,7 +333,8 @@ const SignUpForm: React.FC<SignUpFormProps> = ({ onSwitchToSignIn, onClose }) =>
       {/* Development Note */}
       <div className="mt-6 p-3 bg-blue-50 border border-blue-200 rounded-lg">
         <p className="text-blue-800 text-xs text-center">
-          🚀 <strong>Dev Mode:</strong> Form is pre-filled for quick testing. Just click "Create Account"!
+          🚀 <strong>Dev Mode:</strong> Form is pre-filled for quick testing.
+          Just click "Create Account"!
         </p>
       </div>
     </div>
