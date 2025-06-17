@@ -1,9 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import Header from './components/Header';
 import LandingPage from './components/LandingPage';
-import Hero from './components/Hero';
-import UnifiedInput from './components/UnifiedInput';
-import StudyPlanGenerator from './components/StudyPlanGenerator';
 import StudyPlanDisplay from './components/StudyPlanDisplay';
 import Dashboard from './components/Dashboard';
 import QuizComponent from './components/QuizComponent';
@@ -16,7 +14,6 @@ import BillingPage from './components/billing/BillingPage';
 import PaymentSuccessPage from './components/billing/PaymentSuccessPage';
 import { StoreProvider } from './components/providers/StoreProvider';
 import { AuthProvider } from './components/AuthProvider';
-import { ThemeProvider } from './contexts/ThemeContext';
 import { useAuthStore } from './stores/useAuthStore';
 import { useStudyPlanStore } from './stores/useStudyPlanStore';
 import { useTaskCompletionStore } from './stores/useTaskCompletionStore';
@@ -112,19 +109,40 @@ function AppContent() {
     }
   }, [isAuthenticated, fetchStudyPlans, fetchCompletions, fetchQuizResults]);
 
-  // Handle URL routing
+  // Use React Router hooks
+  const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Update current view based on location
   useEffect(() => {
-    const path = window.location.pathname;
+    const path = location.pathname;
     if (path === '/pricing') {
       setCurrentView('pricing');
     } else if (path === '/billing') {
       setCurrentView('billing');
     } else if (path === '/billing/success') {
       setCurrentView('billing-success');
-    } else if (isAuthenticated && currentView === 'landing') {
+    } else if (path === '/dashboard') {
       setCurrentView('dashboard');
+    } else if (path === '/study') {
+      setCurrentView('study');
+    } else if (path === '/quiz') {
+      setCurrentView('quiz');
+    } else if (path === '/') {
+      if (isAuthenticated) {
+        setCurrentView('dashboard');
+      } else {
+        setCurrentView('landing');
+      }
     }
-  }, [isAuthenticated, currentView]);
+  }, [location.pathname, isAuthenticated]);
+  
+  // Redirect to dashboard if authenticated and on landing
+  useEffect(() => {
+    if (isAuthenticated && location.pathname === '/' && currentView === 'landing') {
+      navigate('/dashboard');
+    }
+  }, [isAuthenticated, location.pathname, currentView, navigate]);
 
   // Check for daily reminder
   useEffect(() => {
@@ -152,23 +170,30 @@ function AppContent() {
     }
   };
 
-  const handleNavigate = (view: 'dashboard' | 'create' | 'generate' | 'study' | 'quiz' | 'pricing' | 'billing') => {
-    if (!isAuthenticated && view !== 'landing' && view !== 'pricing') {
+  const handleNavigate = (view: 'dashboard' | 'study' | 'quiz' | 'pricing' | 'billing' | 'landing' | 'billing-success') => {
+    // For landing and pricing pages, no authentication is needed
+    if (view === 'landing' || view === 'pricing') {
+      // Navigate directly without authentication check
+    } else if (!isAuthenticated) {
+      // For other pages, require authentication
       setShowAuthModal(true);
       return;
     }
     
-    setCurrentView(view);
-    
-    // Update URL without page reload
-    const urls = {
-      dashboard: '/',
+    // Use React Router's navigate instead of window.history
+    const urls: Record<string, string> = {
+      landing: '/',
+      dashboard: '/dashboard',
+      study: '/study',
+      quiz: '/quiz',
       pricing: '/pricing',
       billing: '/billing',
+      'billing-success': '/billing/success'
     };
     
-    if (urls[view as keyof typeof urls]) {
-      window.history.pushState({}, '', urls[view as keyof typeof urls]);
+    if (urls[view]) {
+      navigate(urls[view]);
+      setCurrentView(view);
     }
   };
 
@@ -346,48 +371,45 @@ function AppContent() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 dark:from-gray-900 dark:to-gray-800 transition-colors duration-200">
-      {/* Show header only when authenticated or on protected views */}
-      {(isAuthenticated || currentView !== 'landing') && (
-        <Header 
-          onNavigate={handleNavigate} 
-          currentView={currentView}
-        />
-      )}
+      {/* Always show the header */}
+      <Header 
+        onNavigate={handleNavigate} 
+        currentView={currentView}
+      />
       
-      {/* Landing page - only show when not authenticated */}
-      {!isAuthenticated && currentView === 'landing' && (
-        <LandingPage onGetStarted={handleGetStarted} />
-      )}
-
-      {/* Pricing page - accessible to everyone */}
-      {currentView === 'pricing' && (
-        <PricingPage onSelectPlan={handleSelectPlan} />
-      )}
-
-      {/* Billing pages - require authentication */}
-      {isAuthenticated && currentView === 'billing' && (
-        <BillingPage />
-      )}
-
-      {isAuthenticated && currentView === 'billing-success' && (
-        <PaymentSuccessPage />
-      )}
-
-      {/* Protected routes - only show when authenticated */}
-      {isAuthenticated && (
-        <>
-          {currentView === 'dashboard' && (
+      {/* Use React Router for routing */}
+      <Routes>
+        {/* Public routes */}
+        <Route path="/" element={
+          !isAuthenticated ? (
+            <LandingPage onGetStarted={handleGetStarted} />
+          ) : (
+            <Navigate to="/dashboard" replace />
+          )
+        } />
+        
+        <Route path="/pricing" element={
+          <PricingPage onSelectPlan={handleSelectPlan} />
+        } />
+        
+        {/* Protected routes */}
+        <Route path="/dashboard" element={
+          isAuthenticated ? (
             <Dashboard
               studyPlans={studyPlans}
-              onCreateNew={() => {}}
+              onCreateNew={() => navigate('/dashboard')}
               onViewPlan={handleViewPlan}
               onDeletePlan={handleDeletePlan}
               onPlanGenerated={handlePlanGenerated}
               incentiveData={incentiveData}
             />
-          )}
-
-          {currentView === 'study' && currentPlan && (
+          ) : (
+            <Navigate to="/" replace />
+          )
+        } />
+        
+        <Route path="/study" element={
+          isAuthenticated && currentPlan ? (
             <StudyPlanDisplay
               studyPlan={currentPlan}
               onStartOver={handleStartOver}
@@ -396,20 +418,45 @@ function AppContent() {
               onStartQuiz={handleStartQuiz}
               incentiveData={incentiveData}
             />
-          )}
-
-          {currentView === 'quiz' && currentQuiz && (
+          ) : (
+            <Navigate to="/dashboard" replace />
+          )
+        } />
+        
+        <Route path="/quiz" element={
+          isAuthenticated && currentQuiz ? (
             <QuizComponent
               quiz={currentQuiz.quiz}
               onComplete={handleQuizComplete}
               onBack={() => {
                 setCurrentQuiz(null);
-                setCurrentView('study');
+                navigate('/study');
               }}
             />
-          )}
-        </>
-      )}
+          ) : (
+            <Navigate to="/dashboard" replace />
+          )
+        } />
+        
+        <Route path="/billing" element={
+          isAuthenticated ? (
+            <BillingPage />
+          ) : (
+            <Navigate to="/" replace />
+          )
+        } />
+        
+        <Route path="/billing/success" element={
+          isAuthenticated ? (
+            <PaymentSuccessPage />
+          ) : (
+            <Navigate to="/" replace />
+          )
+        } />
+        
+        {/* Fallback route */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
 
       {/* Authentication Modal */}
       <AuthModal
@@ -445,13 +492,11 @@ function AppContent() {
 
 function App() {
   return (
-    <ThemeProvider>
+    <StoreProvider>
       <AuthProvider>
-        <StoreProvider>
-          <AppContent />
-        </StoreProvider>
+        <AppContent />
       </AuthProvider>
-    </ThemeProvider>
+    </StoreProvider>
   );
 }
 

@@ -8,7 +8,7 @@ import {
   CreditCard,
   DollarSign,
 } from "lucide-react";
-import { useAuth } from "../hooks/useAuth";
+
 import { useSubscriptionStore } from "../stores/useSubscriptionStore";
 import AuthModal from "./AuthModal";
 import UserProfile from "./UserProfile";
@@ -19,20 +19,19 @@ interface HeaderProps {
   onNavigate: (
     view:
       | "dashboard"
-      | "create"
-      | "generate"
       | "study"
       | "quiz"
       | "pricing"
       | "billing"
-      | "landing",
+      | "landing"
+      | "billing-success"
   ) => void;
   currentView: string;
 }
 
 const Header: React.FC<HeaderProps> = ({ onNavigate, currentView }) => {
-  const { user, isAuthenticated, signOut } = useAuth();
-  const { isAuthenticated: storeIsAuthenticated, profile } = useAuthStore();
+  // Use only one authentication source to avoid inconsistencies
+  const { isAuthenticated, profile, signOut } = useAuthStore();
   const { getCurrentPlan, isSubscribed } = useSubscriptionStore();
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showUserProfile, setShowUserProfile] = useState(false);
@@ -43,7 +42,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, currentView }) => {
   const handleSignOut = () => {
     signOut();
     setShowUserMenu(false);
-    onNavigate("dashboard");
+    onNavigate("landing");
   };
 
   const handleSettingsClick = () => {
@@ -51,21 +50,19 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, currentView }) => {
     setShowUserMenu(false);
   };
 
-  // Use either isAuthenticated from useAuth or from useAuthStore
-  const userIsAuthenticated = isAuthenticated || storeIsAuthenticated;
+  // Use only the store authentication state
+  const userIsAuthenticated = isAuthenticated;
 
-  // Use either user from useAuth or profile from useAuthStore
-  const displayUser =
-    user ||
-    (profile
-      ? {
-          id: profile.id,
-          name: profile.name,
-          email: profile.email,
-          avatar: profile.avatar_url,
-          stats: profile.stats || { level: 1 },
-        }
-      : null);
+  // Use profile from useAuthStore
+  const displayUser = profile
+    ? {
+        id: profile.id,
+        name: profile.name,
+        email: profile.email,
+        avatar: profile.avatar_url,
+        stats: profile.stats || { level: 1 },
+      }
+    : null;
 
   return (
     <>
@@ -73,7 +70,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, currentView }) => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <button
-              onClick={() => onNavigate("dashboard")}
+              onClick={() => onNavigate("landing")}
               className="flex items-center space-x-3 hover:opacity-80 transition-opacity"
             >
               <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-2 rounded-lg">
@@ -166,17 +163,19 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, currentView }) => {
                     <img
                       src={
                         displayUser.avatar ||
-                        `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(displayUser.name)}`
+                        `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(
+                          displayUser.name
+                        )}`
                       }
                       alt={displayUser.name}
                       className="w-8 h-8 rounded-full border-2 border-gray-200 dark:border-gray-600"
                     />
                     <div className="hidden sm:block text-left">
-                      <div className="text-sm font-medium text-gray-900 dark:text-white">
+                      <div className="text-sm font-medium text-gray-700 dark:text-gray-300">
                         {displayUser.name}
                       </div>
                       <div className="text-xs text-gray-500 dark:text-gray-400">
-                        Level {displayUser.stats?.level || 1}
+                        {displayUser.email}
                       </div>
                     </div>
                   </button>
@@ -188,7 +187,9 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, currentView }) => {
                           <img
                             src={
                               displayUser.avatar ||
-                              `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(displayUser.name)}`
+                              `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(
+                                displayUser.name
+                              )}`
                             }
                             alt={displayUser.name}
                             className="w-10 h-10 rounded-full"
@@ -202,8 +203,19 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, currentView }) => {
                             </div>
                             <div className="text-xs text-blue-600 dark:text-blue-400 flex items-center mt-1">
                               <Award className="h-3 w-3 mr-1" />
-                              Level {displayUser.stats?.level || 1} •{" "}
-                              {displayUser.stats?.totalXP || 0} XP
+                              Level{" "}
+                              {typeof displayUser.stats === "object" &&
+                              displayUser.stats !== null &&
+                              "level" in displayUser.stats
+                                ? Number(displayUser.stats.level) || 1
+                                : 1}{" "}
+                              •{" "}
+                              {typeof displayUser.stats === "object" &&
+                              displayUser.stats !== null &&
+                              "totalXP" in displayUser.stats
+                                ? Number(displayUser.stats.totalXP) || 0
+                                : 0}{" "}
+                              XP
                             </div>
                           </div>
                         </div>

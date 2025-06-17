@@ -19,6 +19,7 @@ interface SignInFormProps {
 
 const SignInForm: React.FC<SignInFormProps> = ({
   onSwitchToSignUp,
+  // onClose is used when the user clicks the close button after reset password
   onClose,
 }) => {
   const { signIn, isLoading, error, clearError } = useAuth();
@@ -53,6 +54,7 @@ const SignInForm: React.FC<SignInFormProps> = ({
     }
   };
 
+  // This function is currently commented out in the UI but kept for development purposes
   const handleQuickDemo = async () => {
     try {
       if (clearError) clearError();
@@ -99,27 +101,27 @@ const SignInForm: React.FC<SignInFormProps> = ({
     return (
       <div className="w-full max-w-md mx-auto">
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Mail className="h-8 w-8 text-blue-600" />
+          <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Mail className="h-8 w-8 text-blue-600 dark:text-blue-400" />
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
             Reset Your Password
           </h2>
-          <p className="text-gray-600">
+          <p className="text-gray-600 dark:text-gray-300">
             Enter your email address and we'll send you a link to reset your
             password
           </p>
         </div>
 
         {resetSent ? (
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+          <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg p-4 mb-6">
             <div className="flex items-start">
-              <CheckCircle className="h-5 w-5 text-green-600 mt-0.5 mr-2" />
+              <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400 mt-0.5 mr-2" />
               <div>
-                <p className="text-green-800 text-sm mb-1">
+                <p className="text-green-800 dark:text-green-200 text-sm mb-1">
                   <strong>Reset link sent!</strong>
                 </p>
-                <p className="text-green-700 text-sm">
+                <p className="text-green-700 dark:text-green-300 text-sm">
                   Please check your email and follow the instructions to reset
                   your password.
                 </p>
@@ -129,18 +131,18 @@ const SignInForm: React.FC<SignInFormProps> = ({
         ) : (
           <form onSubmit={handleResetPassword} className="space-y-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Email Address
               </label>
               <div className="relative">
-                <Mail className="h-5 w-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+                <Mail className="h-5 w-5 text-gray-400 dark:text-gray-500 absolute left-3 top-1/2 transform -translate-y-1/2" />
                 <input
                   type="email"
                   value={formData.email}
                   onChange={(e) =>
                     setFormData((prev) => ({ ...prev, email: e.target.value }))
                   }
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-500 dark:placeholder-gray-400"
                   placeholder="Enter your email"
                   required
                 />
@@ -150,7 +152,7 @@ const SignInForm: React.FC<SignInFormProps> = ({
             <button
               type="submit"
               disabled={isLoading || !formData.email}
-              className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 flex items-center justify-center"
+              className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
             >
               {isLoading ? (
                 <>
@@ -167,7 +169,7 @@ const SignInForm: React.FC<SignInFormProps> = ({
         <div className="mt-6 text-center">
           <button
             onClick={() => setResetPasswordMode(false)}
-            className="text-blue-600 hover:text-blue-700 font-medium"
+            className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium"
           >
             Back to Sign In
           </button>
@@ -182,35 +184,35 @@ const SignInForm: React.FC<SignInFormProps> = ({
         <div className="w-16 h-16 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4">
           <Sparkles className="h-8 w-8 text-white" />
         </div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Welcome Back!</h2>
-        <p className="text-gray-600">
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Welcome Back!</h2>
+        <p className="text-gray-600 dark:text-gray-300">
           Sign in to continue your learning journey
         </p>
       </div>
 
       {error && !error.includes("Email not confirmed") && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+        <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg">
           <div className="flex items-start">
-            <AlertCircle className="h-5 w-5 text-red-600 mt-0.5 mr-2" />
-            <p className="text-red-700 text-sm">{error}</p>
+            <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 mt-0.5 mr-2" />
+            <p className="text-red-700 dark:text-red-300 text-sm">{error}</p>
           </div>
         </div>
       )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             Email Address
           </label>
           <div className="relative">
-            <Mail className="h-5 w-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+            <Mail className="h-5 w-5 text-gray-400 dark:text-gray-500 absolute left-3 top-1/2 transform -translate-y-1/2" />
             <input
               type="email"
               value={formData.email}
               onChange={(e) =>
                 setFormData((prev) => ({ ...prev, email: e.target.value }))
               }
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-500 dark:placeholder-gray-400"
               placeholder="Enter your email"
               required
             />
@@ -218,25 +220,25 @@ const SignInForm: React.FC<SignInFormProps> = ({
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             Password
           </label>
           <div className="relative">
-            <Lock className="h-5 w-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+            <Lock className="h-5 w-5 text-gray-400 dark:text-gray-500 absolute left-3 top-1/2 transform -translate-y-1/2" />
             <input
               type={showPassword ? "text" : "password"}
               value={formData.password}
               onChange={(e) =>
                 setFormData((prev) => ({ ...prev, password: e.target.value }))
               }
-              className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full pl-10 pr-12 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-500 dark:placeholder-gray-400"
               placeholder="Enter your password"
               required
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
             >
               {showPassword ? (
                 <EyeOff className="h-5 w-5" />
@@ -251,13 +253,13 @@ const SignInForm: React.FC<SignInFormProps> = ({
           <label className="flex items-center">
             <input
               type="checkbox"
-              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              className="rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500 bg-white dark:bg-gray-800"
             />
-            <span className="ml-2 text-sm text-gray-600">Remember me</span>
+            <span className="ml-2 text-sm text-gray-600 dark:text-gray-300">Remember me</span>
           </label>
           <button
             type="button"
-            className="text-sm text-blue-600 hover:text-blue-700"
+            className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
             onClick={() => setResetPasswordMode(true)}
           >
             Forgot password?
@@ -305,11 +307,11 @@ const SignInForm: React.FC<SignInFormProps> = ({
       </div> */}
 
       <div className="mt-6 text-center">
-        <p className="text-gray-600">
+        <p className="text-gray-600 dark:text-gray-300">
           Don't have an account?{" "}
           <button
             onClick={onSwitchToSignUp}
-            className="text-blue-600 hover:text-blue-700 font-medium"
+            className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium"
           >
             Sign up
           </button>
