@@ -261,12 +261,12 @@ const Dashboard: React.FC<DashboardProps> = ({
       `}
       >
         {/* Sidebar Header - Fixed */}
-        <div className="p-4 sm:p-6 border-b border-gray-200 flex-shrink-0">
-          <h2 className="text-lg font-bold text-gray-900">Dashboard</h2>
-          <p className="text-sm text-gray-600">Manage your learning</p>
+        <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white">Dashboard</h2>
+          <p className="text-sm text-gray-600 dark:text-gray-300">Manage your learning</p>
 
           {/* Plan Status */}
-          <div className="mt-4 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg">
+          <div className="mt-4 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-lg">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium text-gray-700">
                 Current Plan
@@ -274,7 +274,7 @@ const Dashboard: React.FC<DashboardProps> = ({
               <span className={`text-xs px-2 py-1 rounded-full ${
                 isSubscribed() 
                   ? 'bg-purple-100 text-purple-800'
-                  : 'bg-gray-100 text-gray-600'
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
               }`}>
                 {currentPlan.name}
               </span>
@@ -298,11 +298,11 @@ const Dashboard: React.FC<DashboardProps> = ({
               <span className="text-sm font-medium text-gray-700">
                 Level {incentiveData.level}
               </span>
-              <span className="text-xs text-gray-500">
+              <span className="text-xs text-gray-500 dark:text-gray-400">
                 {incentiveData.totalXP} XP
               </span>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
+            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
               <div
                 className="bg-gradient-to-r from-blue-500 to-indigo-500 h-2 rounded-full transition-all duration-300"
                 style={{ width: `${incentiveData.totalXP % 100}%` }}
@@ -320,13 +320,13 @@ const Dashboard: React.FC<DashboardProps> = ({
               className={`w-full flex items-center px-4 py-3 rounded-lg transition-colors duration-200 font-medium ${
                 activeTab === item.id
                   ? item.color
-                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                  : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700"
               }`}
             >
               <item.icon className="h-5 w-5 mr-3 flex-shrink-0" />
               <span className="flex-1 text-left">{item.label}</span>
               {item.count !== null && (
-                <span className="bg-gray-200 text-gray-700 text-xs px-2 py-1 rounded-full">
+                <span className="bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs px-2 py-1 rounded-full">
                   {item.count}
                 </span>
               )}
@@ -350,14 +350,14 @@ const Dashboard: React.FC<DashboardProps> = ({
           <div className="space-y-2">
             <a
               href="/billing"
-              className="w-full flex items-center px-3 py-2 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+              className="w-full flex items-center px-3 py-2 text-sm text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
             >
               <CreditCard className="h-4 w-4 mr-2" />
               Billing & Plans
             </a>
             <a
               href="/pricing"
-              className="w-full flex items-center px-3 py-2 text-sm text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+              className="w-full flex items-center px-3 py-2 text-sm text-gray-600 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors"
             >
               <DollarSign className="h-4 w-4 mr-2" />
               View Pricing
