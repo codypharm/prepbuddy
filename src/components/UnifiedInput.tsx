@@ -6,13 +6,13 @@ import { useUsageStore } from '../stores/useUsageStore';
 import LimitReachedModal from './LimitReachedModal';
 
 interface UnifiedInputProps {
-  onSubmit: (data: { content: string; fileName?: string; hasFile: boolean }) => void;
+  onSubmit: (data: { content: string; fileNames?: string[]; hasFile: boolean }) => void;
 }
 
 const UnifiedInput: React.FC<UnifiedInputProps> = ({ onSubmit }) => {
   const [isDragOver, setIsDragOver] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [textContent, setTextContent] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [extractedContent, setExtractedContent] = useState<string>('');
@@ -33,83 +33,89 @@ const UnifiedInput: React.FC<UnifiedInputProps> = ({ onSubmit }) => {
     setIsDragOver(false);
   }, []);
 
-  const processFile = async (file: File) => {
+  const processFiles = async (files: File[]) => {
     setIsProcessing(true);
     setError(null);
-    
+
     try {
       // Check subscription limits for file uploads
       const currentPlan = getCurrentPlan();
       const usage = await getUsage();
-      
-      if (currentPlan.limits.fileUploads !== 'unlimited') {
-        if (usage.fileUploads >= currentPlan.limits.fileUploads) {
-          setLimitMessage(
-            `You've reached your limit of ${currentPlan.limits.fileUploads} file uploads per month. ` +
-            `Please upgrade your plan to upload more files.`
-          );
-          setShowLimitModal(true);
-          throw new Error('File upload limit reached');
-        }
-      }
-      
-      // Check storage limits
-      const storageLimit = currentPlan.limits.storage;
-      const currentStorage = usage.storageUsed;
-      const fileSizeBytes = file.size;
-      
-      // Convert storage limit to bytes
-      let storageLimitBytes: number;
-      if (storageLimit === 'unlimited') {
-        storageLimitBytes = Number.MAX_SAFE_INTEGER;
-      } else {
-        const match = storageLimit.match(/(\d+)(MB|GB)/);
-        if (!match) throw new Error('Invalid storage limit format');
-        
-        const amount = parseInt(match[1]);
-        const unit = match[2];
-        
-        if (unit === 'MB') {
-          storageLimitBytes = amount * 1024 * 1024;
-        } else if (unit === 'GB') {
-          storageLimitBytes = amount * 1024 * 1024 * 1024;
-        } else {
-          throw new Error('Invalid storage unit');
-        }
-      }
-      
-      if (currentStorage + fileSizeBytes > storageLimitBytes) {
+      const availableUploads = currentPlan.limits.fileUploads === 'unlimited' ? Infinity : currentPlan.limits.fileUploads - usage.fileUploads;
+
+      if (files.length > availableUploads) {
         setLimitMessage(
-          `You've reached your storage limit of ${storageLimit}. ` +
-          `Please upgrade your plan or delete some files to free up space.`
+          `You can upload ${availableUploads} more files. ` +
+          `Please upgrade your plan to upload more files.`
         );
         setShowLimitModal(true);
-        throw new Error('Storage limit reached');
+        throw new Error('File upload limit reached');
       }
 
-      // Validate file size
-      if (!FileProcessor.validateFileSize(file)) {
-        throw new Error('File size exceeds 25MB limit');
+      const newFiles = [...uploadedFiles];
+      let newContent = extractedContent;
+
+      for (const file of files) {
+        // Check storage limits
+        const storageLimit = currentPlan.limits.storage;
+        const currentStorage = usage.storageUsed;
+        const fileSizeBytes = file.size;
+
+        // Convert storage limit to bytes
+        let storageLimitBytes: number;
+        if (storageLimit === 'unlimited') {
+          storageLimitBytes = Number.MAX_SAFE_INTEGER;
+        } else {
+          const match = storageLimit.match(/(\d+)(MB|GB)/);
+          if (!match) throw new Error('Invalid storage limit format');
+
+          const amount = parseInt(match[1]);
+          const unit = match[2];
+
+          if (unit === 'MB') {
+            storageLimitBytes = amount * 1024 * 1024;
+          } else if (unit === 'GB') {
+            storageLimitBytes = amount * 1024 * 1024 * 1024;
+          } else {
+            throw new Error('Invalid storage unit');
+          }
+        }
+
+        if (currentStorage + fileSizeBytes > storageLimitBytes) {
+          setLimitMessage(
+            `You've reached your storage limit of ${storageLimit}. ` +
+            `Please upgrade your plan or delete some files to free up space.`
+          );
+          setShowLimitModal(true);
+          throw new Error('Storage limit reached');
+        }
+
+        // Validate file size
+        if (!FileProcessor.validateFileSize(file)) {
+          throw new Error(`File ${file.name} size exceeds 25MB limit`);
+        }
+
+        const content = await FileProcessor.extractTextFromFile(file);
+
+        if (content.length < 50) {
+          throw new Error(`File ${file.name} content is too short. Please provide more substantial content for analysis.`);
+        }
+
+        newFiles.push(file);
+        newContent += content + '\n\n';
+
+        // Track file upload usage
+        await incrementUsage('fileUploads');
+        await incrementUsage('storageUsed', file.size);
       }
 
-      const content = await FileProcessor.extractTextFromFile(file);
-      
-      if (content.length < 50) {
-        throw new Error('File content is too short. Please provide more substantial content for analysis.');
-      }
+      setUploadedFiles(newFiles);
+      setExtractedContent(newContent);
 
-      setExtractedContent(content);
-      setUploadedFile(file);
-      
-      // Track file upload usage
-      await incrementUsage('fileUploads');
-      await incrementUsage('storageUsed', file.size);
     } catch (error) {
       if (error instanceof Error && !error.message.includes('limit reached')) {
         setError(error.message);
       }
-      setUploadedFile(null);
-      setExtractedContent('');
     } finally {
       setIsProcessing(false);
     }
@@ -121,14 +127,14 @@ const UnifiedInput: React.FC<UnifiedInputProps> = ({ onSubmit }) => {
     
     const files = Array.from(e.dataTransfer.files);
     if (files.length > 0) {
-      processFile(files[0]);
+      processFiles(files);
     }
-  }, []);
+  }, [uploadedFiles]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
-      processFile(files[0]);
+      processFiles(Array.from(files));
     }
   };
 
@@ -160,8 +166,8 @@ const UnifiedInput: React.FC<UnifiedInputProps> = ({ onSubmit }) => {
 
       onSubmit({
         content: combinedContent,
-        fileName: uploadedFile?.name,
-        hasFile: !!uploadedFile
+        fileNames: uploadedFiles.map(f => f.name),
+        hasFile: uploadedFiles.length > 0
       });
     } catch (error) {
       if (error instanceof Error) {
@@ -170,10 +176,15 @@ const UnifiedInput: React.FC<UnifiedInputProps> = ({ onSubmit }) => {
     }
   };
 
-  const clearFile = () => {
-    setUploadedFile(null);
+  const clearFiles = () => {
+    setUploadedFiles([]);
     setExtractedContent('');
     setError(null);
+  };
+
+  const removeFile = (fileToRemove: File) => {
+    const newFiles = uploadedFiles.filter(file => file !== fileToRemove);
+    setUploadedFiles(newFiles);
   };
 
   const clearError = () => {
@@ -219,26 +230,30 @@ const UnifiedInput: React.FC<UnifiedInputProps> = ({ onSubmit }) => {
               📁 Upload Study Materials (Optional)
             </label>
             
-            {uploadedFile ? (
-              <div className="bg-green-50 dark:bg-green-900/20 border-2 border-green-200 dark:border-green-700 rounded-xl p-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center">
-                    <FileText className="h-8 w-8 text-green-600 mr-3" />
-                    <div>
-                      <p className="font-medium text-green-900 dark:text-green-400">{uploadedFile.name}</p>
-                      <p className="text-sm text-green-700 dark:text-green-400">
-                        {(uploadedFile.size / 1024 / 1024).toFixed(2)} MB • {extractedContent.length.toLocaleString()} characters extracted
-                      </p>
+            {uploadedFiles.length > 0 ? (
+              <div className="space-y-4">
+                {uploadedFiles.map((file, index) => (
+                  <div key={index} className="bg-green-50 dark:bg-green-900/20 border-2 border-green-200 dark:border-green-700 rounded-xl p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <FileText className="h-8 w-8 text-green-600 mr-3" />
+                        <div>
+                          <p className="font-medium text-green-900 dark:text-green-400">{file.name}</p>
+                          <p className="text-sm text-green-700 dark:text-green-400">
+                            {(file.size / 1024 / 1024).toFixed(2)} MB
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeFile(file)}
+                        className="text-green-600 hover:text-green-800 dark:hover:text-green-400 p-2"
+                      >
+                        <X className="h-5 w-5" />
+                      </button>
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={clearFile}
-                    className="text-green-600 hover:text-green-800 dark:hover:text-green-400 p-2"
-                  >
-                    <X className="h-5 w-5" />
-                  </button>
-                </div>
+                ))}
               </div>
             ) : (
               <div
@@ -255,9 +270,6 @@ const UnifiedInput: React.FC<UnifiedInputProps> = ({ onSubmit }) => {
                   <div className="py-8">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
                     <p className="text-gray-600 dark:text-gray-400">PrepBuddy is analyzing your document...</p>
-                    {uploadedFile && (
-                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">{uploadedFile.name}</p>
-                    )}
                   </div>
                 ) : (
                   <>
@@ -271,6 +283,7 @@ const UnifiedInput: React.FC<UnifiedInputProps> = ({ onSubmit }) => {
                           className="hidden"
                           accept={FileProcessor.getAcceptString()}
                           onChange={handleFileSelect}
+                          multiple
                         />
                       </label>
                     </p>
@@ -337,10 +350,10 @@ const UnifiedInput: React.FC<UnifiedInputProps> = ({ onSubmit }) => {
                   <span className="text-blue-600 dark:text-blue-400">~{Math.ceil(wordCount / 200)} minutes</span>
                 </div>
               </div>
-              {uploadedFile && (
+              {uploadedFiles.length > 0 && (
                 <div className="mt-2">
-                  <span className="font-medium text-gray-700 dark:text-gray-300">Source File: </span>
-                  <span className="text-gray-600 dark:text-gray-400">{uploadedFile.name}</span>
+                  <span className="font-medium text-gray-700 dark:text-gray-300">Source File(s): </span>
+                  <span className="text-gray-600 dark:text-gray-400">{uploadedFiles.map(f => f.name).join(', ')}</span>
                 </div>
               )}
             </div>

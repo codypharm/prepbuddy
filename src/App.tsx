@@ -230,8 +230,11 @@ function AppContent() {
   };
 
   const handleViewPlan = (plan: StudyPlan) => {
+    console.log('handleViewPlan called with plan:', plan);
     setCurrentPlan(plan);
     setCurrentView('study');
+    navigate('/study'); // Add this line to trigger navigation
+    console.log('currentPlan after setting:', plan);
   };
 
   const handleDeletePlan = async (planId: string) => {
@@ -247,20 +250,24 @@ function AppContent() {
     }
   };
 
-  const handleAddFileToPlan = async (planId: string, file: File, content: string) => {
-    const newFile = {
-      id: Date.now().toString(),
-      name: file.name,
-      content,
-      addedAt: new Date()
-    };
-
+  const handleAddFileToPlan = async (planId: string, filesData: { file: File; content: string }[]) => {
     const plan = studyPlans.find(p => p.id === planId);
     if (!plan) return;
 
+    const newFiles = filesData.map(data => {
+      const newId = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
+      console.log("Generated file ID:", newId);
+      return {
+        id: newId,
+        name: data.file.name,
+        content: data.content,
+        addedAt: new Date()
+      };
+    });
+
     const updatedPlan = {
       ...plan,
-      files: [...plan.files, newFile]
+      files: [...plan.files, ...newFiles]
     };
 
     try {
@@ -270,7 +277,7 @@ function AppContent() {
         setCurrentPlan(updatedPlan);
       }
     } catch (error) {
-      console.error('Failed to add file to plan:', error);
+      console.error('Failed to add file(s) to plan:', error);
     }
   };
 
@@ -408,8 +415,7 @@ function AppContent() {
           )
         } />
         
-        <Route path="/study" element={
-          isAuthenticated && currentPlan ? (
+        <Route path="/study" element={isAuthenticated && currentPlan ? (
             <StudyPlanDisplay
               studyPlan={currentPlan}
               onStartOver={handleStartOver}
@@ -420,8 +426,7 @@ function AppContent() {
             />
           ) : (
             <Navigate to="/dashboard" replace />
-          )
-        } />
+          )} />
         
         <Route path="/quiz" element={
           isAuthenticated && currentQuiz ? (
