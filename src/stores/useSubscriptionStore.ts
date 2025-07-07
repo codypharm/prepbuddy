@@ -1,15 +1,15 @@
-import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
-import { supabase, handleSupabaseError, requireAuth } from '../lib/supabase';
-import { Subscription, PaymentHistory, BillingInfo } from '../types/subscription';
-import { SUBSCRIPTION_PLANS, getFreePlan } from '../config/subscriptionPlans';
+import { create } from "zustand";
+import { persist, createJSONStorage } from "zustand/middleware";
+import { supabase, handleSupabaseError, requireAuth } from "../lib/supabase";
+import { Subscription, PaymentHistory } from "../types/subscription";
+import { SUBSCRIPTION_PLANS, getFreePlan } from "../config/subscriptionPlans";
 
 interface SubscriptionState {
   subscription: Subscription | null;
   paymentHistory: PaymentHistory[];
   isLoading: boolean;
   error: string | null;
-  
+
   // Actions
   fetchSubscription: () => Promise<void>;
   fetchPaymentHistory: () => Promise<void>;
@@ -18,16 +18,16 @@ interface SubscriptionState {
   cancelSubscription: () => Promise<void>;
   updateSubscription: (updates: Partial<Subscription>) => Promise<void>;
   clearError: () => void;
-  
+
   // Computed properties
-  getCurrentPlan: () => typeof SUBSCRIPTION_PLANS[0];
+  getCurrentPlan: () => (typeof SUBSCRIPTION_PLANS)[0];
   isSubscribed: () => boolean;
   canAccessFeature: (feature: string) => boolean;
   getRemainingUsage: () => {
-    studyPlans: number | 'unlimited';
-    aiRequests: number | 'unlimited';
-    fileUploads: number | 'unlimited';
-    studyGroups: number | 'unlimited';
+    studyPlans: number | "unlimited";
+    aiRequests: number | "unlimited";
+    fileUploads: number | "unlimited";
+    studyGroups: number | "unlimited";
   };
 }
 
@@ -41,36 +41,42 @@ export const useSubscriptionStore = create<SubscriptionState>()(
 
       fetchSubscription: async () => {
         set({ isLoading: true, error: null });
-        
+
         try {
           const user = await requireAuth();
-          
+
           const { data, error } = await supabase
-            .from('subscriptions')
-            .select('*')
-            .eq('user_id', user.id)
-            .eq('status', 'active')
+            .from("subscriptions")
+            .select("*")
+            .eq("user_id", user.id)
+            .eq("status", "active")
             .single();
 
-          if (error && error.code !== 'PGRST116') {
+          if (error && error.code !== "PGRST116") {
             throw error;
           }
 
-          const subscription = data ? {
-            id: data.id,
-            userId: data.user_id,
-            stripeCustomerId: data.stripe_customer_id || undefined,
-            stripeSubscriptionId: data.stripe_subscription_id || undefined,
-            planId: data.plan_id,
-            status: data.status as Subscription['status'],
-            currentPeriodStart: data.current_period_start ? new Date(data.current_period_start) : undefined,
-            currentPeriodEnd: data.current_period_end ? new Date(data.current_period_end) : undefined,
-            cancelAtPeriodEnd: data.cancel_at_period_end,
-            trialEnd: data.trial_end ? new Date(data.trial_end) : undefined,
-            createdAt: new Date(data.created_at),
-            updatedAt: new Date(data.updated_at),
-          } : null;
-          
+          const subscription = data
+            ? {
+                id: data.id,
+                userId: data.user_id,
+                stripeCustomerId: data.stripe_customer_id || undefined,
+                stripeSubscriptionId: data.stripe_subscription_id || undefined,
+                planId: data.plan_id,
+                status: data.status as Subscription["status"],
+                currentPeriodStart: data.current_period_start
+                  ? new Date(data.current_period_start)
+                  : undefined,
+                currentPeriodEnd: data.current_period_end
+                  ? new Date(data.current_period_end)
+                  : undefined,
+                cancelAtPeriodEnd: data.cancel_at_period_end,
+                trialEnd: data.trial_end ? new Date(data.trial_end) : undefined,
+                createdAt: new Date(data.created_at),
+                updatedAt: new Date(data.updated_at),
+              }
+            : null;
+
           set({
             subscription,
             isLoading: false,
@@ -86,29 +92,30 @@ export const useSubscriptionStore = create<SubscriptionState>()(
       fetchPaymentHistory: async () => {
         try {
           const user = await requireAuth();
-          
+
           const { data, error } = await supabase
-            .from('payment_history')
-            .select('*')
-            .eq('user_id', user.id)
-            .order('created_at', { ascending: false })
+            .from("payment_history")
+            .select("*")
+            .eq("user_id", user.id)
+            .order("created_at", { ascending: false })
             .limit(50);
 
           if (error) throw error;
 
-          const paymentHistory = data.map(payment => ({
+          const paymentHistory = data.map((payment) => ({
             id: payment.id,
             userId: payment.user_id,
             subscriptionId: payment.subscription_id || undefined,
-            stripePaymentIntentId: payment.stripe_payment_intent_id || undefined,
+            stripePaymentIntentId:
+              payment.stripe_payment_intent_id || undefined,
             stripeInvoiceId: payment.stripe_invoice_id || undefined,
             amount: payment.amount,
             currency: payment.currency,
-            status: payment.status as PaymentHistory['status'],
+            status: payment.status as PaymentHistory["status"],
             description: payment.description || undefined,
             createdAt: new Date(payment.created_at),
           }));
-          
+
           set({ paymentHistory });
         } catch (error: any) {
           set({ error: handleSupabaseError(error) });
@@ -118,16 +125,19 @@ export const useSubscriptionStore = create<SubscriptionState>()(
       createCheckoutSession: async (priceId: string) => {
         try {
           const user = await requireAuth();
-          
+
           // Call Supabase Edge Function to create checkout session
-          const { data, error } = await supabase.functions.invoke('create-checkout-session', {
-            body: {
-              priceId,
-              userId: user.id,
-              successUrl: `${window.location.origin}/billing/success`,
-              cancelUrl: `${window.location.origin}/billing`,
+          const { data, error } = await supabase.functions.invoke(
+            "create-checkout-session",
+            {
+              body: {
+                priceId,
+                userId: user.id,
+                successUrl: `${window.location.origin}/billing/success`,
+                cancelUrl: `${window.location.origin}/billing`,
+              },
             },
-          });
+          );
 
           if (error) throw error;
 
@@ -142,18 +152,21 @@ export const useSubscriptionStore = create<SubscriptionState>()(
         try {
           const user = await requireAuth();
           const { subscription } = get();
-          
+
           if (!subscription?.stripeCustomerId) {
-            throw new Error('No active subscription found');
+            throw new Error("No active subscription found");
           }
 
           // Call Supabase Edge Function to create portal session
-          const { data, error } = await supabase.functions.invoke('create-portal-session', {
-            body: {
-              customerId: subscription.stripeCustomerId,
-              returnUrl: `${window.location.origin}/billing`,
+          const { data, error } = await supabase.functions.invoke(
+            "create-portal-session",
+            {
+              body: {
+                customerId: subscription.stripeCustomerId,
+                returnUrl: `${window.location.origin}/billing`,
+              },
             },
-          });
+          );
 
           if (error) throw error;
 
@@ -168,17 +181,20 @@ export const useSubscriptionStore = create<SubscriptionState>()(
         try {
           const user = await requireAuth();
           const { subscription } = get();
-          
+
           if (!subscription?.stripeSubscriptionId) {
-            throw new Error('No active subscription found');
+            throw new Error("No active subscription found");
           }
 
           // Call Supabase Edge Function to cancel subscription
-          const { error } = await supabase.functions.invoke('cancel-subscription', {
-            body: {
-              subscriptionId: subscription.stripeSubscriptionId,
+          const { error } = await supabase.functions.invoke(
+            "cancel-subscription",
+            {
+              body: {
+                subscriptionId: subscription.stripeSubscriptionId,
+              },
             },
-          });
+          );
 
           if (error) throw error;
 
@@ -194,19 +210,19 @@ export const useSubscriptionStore = create<SubscriptionState>()(
         try {
           const user = await requireAuth();
           const { subscription } = get();
-          
+
           if (!subscription) {
-            throw new Error('No subscription found');
+            throw new Error("No subscription found");
           }
 
           const { error } = await supabase
-            .from('subscriptions')
+            .from("subscriptions")
             .update({
               ...updates,
               updated_at: new Date().toISOString(),
             })
-            .eq('id', subscription.id)
-            .eq('user_id', user.id);
+            .eq("id", subscription.id)
+            .eq("user_id", user.id);
 
           if (error) throw error;
 
@@ -228,19 +244,24 @@ export const useSubscriptionStore = create<SubscriptionState>()(
         if (!subscription) {
           return getFreePlan();
         }
-        
-        const plan = SUBSCRIPTION_PLANS.find(p => p.id === subscription.planId);
+
+        const plan = SUBSCRIPTION_PLANS.find(
+          (p) => p.id === subscription.planId,
+        );
         return plan || getFreePlan();
       },
 
       isSubscribed: () => {
         const { subscription } = get();
-        return subscription?.status === 'active' || subscription?.status === 'trialing';
+        return (
+          subscription?.status === "active" ||
+          subscription?.status === "trialing"
+        );
       },
 
       canAccessFeature: (feature: string) => {
         const plan = get().getCurrentPlan();
-        return plan.features.includes(feature) || plan.id !== 'free';
+        return plan.features.includes(feature) || plan.id !== "free";
       },
 
       getRemainingUsage: () => {
@@ -256,12 +277,12 @@ export const useSubscriptionStore = create<SubscriptionState>()(
       },
     }),
     {
-      name: 'subscription-storage',
+      name: "subscription-storage",
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         subscription: state.subscription,
         paymentHistory: state.paymentHistory,
       }),
-    }
-  )
+    },
+  ),
 );

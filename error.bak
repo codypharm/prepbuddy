@@ -1,0 +1,59 @@
+was researching "It basically develops a study plan, but I want it to be more interactive, thus hand-holding the user through different topics, helping the user thoroughly master materials, currently it seem to just work with the materials that user provide but i also want it to allow user give it optional command to get more materials from online in order to give the user the possible best"
+
+
+but came accross
+
+To make the app more interactive and "hand-holding":
+
+Guided learning paths: Instead of just providing a plan, the app could guide the user step-by-step through topics within their materials. This could involve:
+Breaking down large topics into smaller, manageable chunks.
+Providing explanations, examples, and illustrations.
+Asking questions to check understanding as the user progresses.
+Active recall and spaced repetition: Incorporate techniques like flashcards, quizzes, or retrieval practice exercises based on the study materials to reinforce learning and aid memory retention.
+Personalized feedback and hints: Provide tailored feedback based on user responses to questions or exercises. Offer hints or explanations when a user struggles.
+Progress visualization and encouragement: Show users their progress in a clear and engaging way (e.g., completion percentages, mastery levels). Offer positive reinforcement and celebrate milestones.
+Interactive simulations or exercises: Depending on the subject matter, you could include interactive elements that allow users to practice concepts in a hands-on way.
+To help the user thoroughly master materials:
+
+Concept mapping or summarization tools: Allow the AI to generate concept maps or summaries of the study materials to help users see the big picture and connect ideas.
+Topic-specific deep dives: Enable users to request more detailed explanations or examples on specific topics they find challenging.
+Practice question generation: The AI could generate practice questions based on the study materials to test understanding.
+Identification of weak areas: Analyze user performance to identify areas where they need more practice or review.
+To allow users to get more materials from online:
+
+Online content search and integration: Implement functionality that allows users to search for relevant online resources (articles, videos, tutorials, etc.) based on their study materials and topics.
+AI-powered content curation: Use AI to filter and recommend the most relevant and high-quality online resources.
+Integration with educational platforms: Consider integrating with popular educational platforms (like Khan Academy, Coursera, etc.) to pull in relevant course materials or videos.
+Content summarization and highlighting: When pulling in online content, use AI to summarize key points or highlight important information to make it easier for the user to digest.
+Additional considerations:
+
+Different learning styles: Consider how to cater to different learning styles (visual, auditory, kinesthetic) by offering various types of content and activities.
+Offline access: Ensure that essential features and downloaded materials are accessible even when offline.
+Gamification: Incorporate gamification elements (points, badges, leaderboards) to make learning more engaging.
+
+
+
+
+
+
+
+
+no multiple file upload, could not process pdf saying Failed to extract text from PDF. Please ensure the PDF contains selectable text.
+
+improved loading signs not weird spinner
+
+plan not opening when clicked
+
+xp dancing between 0mand 25 in the dashboard side bar
+
+after creating study plan, it went back to overview page instead of study plan page
+
+the notification pop up does not follow theme and the buttons there are not working well
+
+examine billing page, is it okay ?
+
+support page needed
+
+use flutterwave for payment
+
+rename app to learnmate
