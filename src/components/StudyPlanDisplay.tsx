@@ -1,17 +1,43 @@
-import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, Target, BookOpen, CheckCircle, Download, Share, RefreshCw, Plus, Upload, FileText, X, Play, Award, Users, MessageCircle, Brain } from 'lucide-react';
-import { StudyPlan, Quiz } from '../App';
-import { FileProcessor } from '../services/fileProcessor';
-import { AIService } from '../services/aiService';
-import AICoaching from './AICoaching';
-import { useSubscriptionStore } from '../stores/useSubscriptionStore';
-import { useUsageStore } from '../stores/useUsageStore';
+import React, { useState, useEffect } from "react";
+import {
+  Calendar,
+  Clock,
+  Target,
+  BookOpen,
+  CheckCircle,
+  Download,
+  Share,
+  RefreshCw,
+  Plus,
+  Upload,
+  FileText,
+  X,
+  Play,
+  Award,
+  Users,
+  MessageCircle,
+  Brain,
+} from "lucide-react";
+import { StudyPlan, Quiz } from "../App";
+import { FileProcessor } from "../services/fileProcessor";
+import { AIService } from "../services/aiService";
+import AICoaching from "./AICoaching";
+import { useSubscriptionStore } from "../stores/useSubscriptionStore";
+import { useUsageStore } from "../stores/useUsageStore";
 
 interface StudyPlanDisplayProps {
   studyPlan: StudyPlan;
   onStartOver: () => void;
-  onAddFile: (planId: string, file: File, content: string) => void;
-  onTaskComplete: (planId: string, dayIndex: number, taskIndex: number, completed: boolean) => void;
+  onAddFile: (
+    planId: string,
+    filesData: { file: File; content: string }[],
+  ) => void;
+  onTaskComplete: (
+    planId: string,
+    dayIndex: number,
+    taskIndex: number,
+    completed: boolean,
+  ) => void;
   onStartQuiz: (quiz: Quiz, dayIndex: number, planId: string) => void;
   incentiveData: {
     currentStreak: number;
@@ -24,13 +50,13 @@ interface StudyPlanDisplayProps {
   };
 }
 
-const StudyPlanDisplay: React.FC<StudyPlanDisplayProps> = ({ 
-  studyPlan, 
-  onStartOver, 
-  onAddFile, 
-  onTaskComplete, 
+const StudyPlanDisplay: React.FC<StudyPlanDisplayProps> = ({
+  studyPlan,
+  onStartOver,
+  onAddFile,
+  onTaskComplete,
   onStartQuiz,
-  incentiveData
+  incentiveData,
 }) => {
   const [selectedDay, setSelectedDay] = useState(1);
   const [completedTasks, setCompletedTasks] = useState<Set<string>>(new Set());
@@ -38,10 +64,11 @@ const StudyPlanDisplay: React.FC<StudyPlanDisplayProps> = ({
   const [isUploadingFile, setIsUploadingFile] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [generatingQuiz, setGeneratingQuiz] = useState<number | null>(null);
-  const [showSocialShare, setShowSocialShare] = useState(false);
   const [showAICoach, setShowAICoach] = useState(false);
   const [selectedTask, setSelectedTask] = useState<string | null>(null);
-  const [subscriptionError, setSubscriptionError] = useState<string | null>(null);
+  const [subscriptionError, setSubscriptionError] = useState<string | null>(
+    null,
+  );
 
   // Get subscription and usage data
   const { getCurrentPlan } = useSubscriptionStore();
@@ -56,84 +83,99 @@ const StudyPlanDisplay: React.FC<StudyPlanDisplayProps> = ({
   }, [studyPlan.id]);
 
   const toggleTask = (taskId: string) => {
-    const [dayIndex, taskIndex] = taskId.split('-').map(Number);
+    const [dayIndex, taskIndex] = taskId.split("-").map(Number);
     const newCompleted = new Set(completedTasks);
     const isCompleted = !newCompleted.has(taskId);
-    
+
     if (isCompleted) {
       newCompleted.add(taskId);
     } else {
       newCompleted.delete(taskId);
     }
-    
+
     setCompletedTasks(newCompleted);
     onTaskComplete(studyPlan.id, dayIndex, taskIndex, isCompleted);
   };
 
-  const handleFileUpload = async (file: File) => {
-    setIsUploadingFile(true);
-    setUploadError(null);
-    
+  const processSingleFileUpload = async (file: File) => {
     try {
       // Check subscription limits for file uploads
       const currentPlan = getCurrentPlan();
       const usage = await getUsage();
-      
-      if (currentPlan.limits.fileUploads !== 'unlimited') {
+
+      if (currentPlan.limits.fileUploads !== "unlimited") {
         if (usage.fileUploads >= currentPlan.limits.fileUploads) {
           throw new Error(
             `You've reached your limit of ${currentPlan.limits.fileUploads} file uploads per month. ` +
-            `Please upgrade your plan to upload more files.`
+              `Please upgrade your plan to upload more files.`,
           );
         }
       }
-      
+
       // Check storage limits
       const storageLimit = currentPlan.limits.storage;
       const currentStorage = usage.storageUsed;
       const fileSizeBytes = file.size;
-      
+
       // Convert storage limit to bytes
       let storageLimitBytes: number;
-      if (storageLimit === 'unlimited') {
+      if (storageLimit === "unlimited") {
         storageLimitBytes = Number.MAX_SAFE_INTEGER;
       } else {
         const match = storageLimit.match(/(\d+)(MB|GB)/);
-        if (!match) throw new Error('Invalid storage limit format');
-        
+        if (!match) throw new Error("Invalid storage limit format");
+
         const amount = parseInt(match[1]);
         const unit = match[2];
-        
-        if (unit === 'MB') {
+
+        if (unit === "MB") {
           storageLimitBytes = amount * 1024 * 1024;
-        } else if (unit === 'GB') {
+        } else if (unit === "GB") {
           storageLimitBytes = amount * 1024 * 1024 * 1024;
         } else {
-          throw new Error('Invalid storage unit');
+          throw new Error("Invalid storage unit");
         }
       }
-      
+
       if (currentStorage + fileSizeBytes > storageLimitBytes) {
         throw new Error(
           `You've reached your storage limit of ${storageLimit}. ` +
-          `Please upgrade your plan or delete some files to free up space.`
+            `Please upgrade your plan or delete some files to free up space.`,
         );
       }
 
       if (!FileProcessor.validateFileSize(file)) {
-        throw new Error('File size exceeds 25MB limit');
+        throw new Error("File size exceeds 25MB limit");
       }
 
       const content = await FileProcessor.extractTextFromFile(file);
-      await onAddFile(studyPlan.id, file, content);
-      
+
       // Track file upload usage
-      await incrementUsage('fileUploads');
-      await incrementUsage('storageUsed', file.size);
-      
+      await incrementUsage("fileUploads");
+      await incrementUsage("storageUsed", file.size);
+
+      return { file, content };
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  const handleFilesUpload = async (files: File[]) => {
+    setIsUploadingFile(true);
+    setUploadError(null);
+
+    try {
+      const uploadedData: { file: File; content: string }[] = [];
+      for (const file of files) {
+        const result = await processSingleFileUpload(file);
+        uploadedData.push(result);
+      }
+      await onAddFile(studyPlan.id, uploadedData);
       setShowAddFile(false);
     } catch (error) {
-      setUploadError(error instanceof Error ? error.message : 'Failed to process file');
+      setUploadError(
+        error instanceof Error ? error.message : "Failed to process file",
+      );
     } finally {
       setIsUploadingFile(false);
     }
@@ -141,39 +183,39 @@ const StudyPlanDisplay: React.FC<StudyPlanDisplayProps> = ({
 
   const generateQuizForDay = async (dayIndex: number) => {
     setGeneratingQuiz(dayIndex);
-    
+
     try {
       // Check AI request limits before generating quiz
       const currentPlan = getCurrentPlan();
       const usage = await getUsage();
-      
-      if (currentPlan.limits.aiRequests !== 'unlimited') {
+
+      if (currentPlan.limits.aiRequests !== "unlimited") {
         if (usage.aiRequests >= currentPlan.limits.aiRequests) {
           throw new Error(
             `You've reached your limit of ${currentPlan.limits.aiRequests} AI requests per month. ` +
-            `Please upgrade your plan to generate more quizzes.`
+              `Please upgrade your plan to generate more quizzes.`,
           );
         }
       }
-      
+
       const day = studyPlan.schedule[dayIndex];
-      const dayContent = studyPlan.files.map(f => f.content).join('\n\n');
-      
+      const dayContent = studyPlan.files.map((f) => f.content).join("\n\n");
+
       // Generate quiz using AI service
       const quiz = await AIService.generateQuiz({
         content: dayContent,
         topic: day.title,
         difficulty: studyPlan.difficulty,
-        questionCount: 5
+        questionCount: 5,
       });
 
       // Add quiz to the day and trigger quiz start
       const updatedDay = { ...day, quiz };
       onStartQuiz(quiz, dayIndex, studyPlan.id);
     } catch (error) {
-      console.error('Failed to generate quiz:', error);
-      
-      if (error instanceof Error && error.message.includes('limit')) {
+      console.error("Failed to generate quiz:", error);
+
+      if (error instanceof Error && error.message.includes("limit")) {
         setSubscriptionError(error.message);
       } else {
         // Create a fallback quiz
@@ -182,33 +224,36 @@ const StudyPlanDisplay: React.FC<StudyPlanDisplayProps> = ({
           title: `${studyPlan.schedule[dayIndex].title} Quiz`,
           questions: [
             {
-              id: '1',
+              id: "1",
               question: `What is the main focus of today's study session: "${studyPlan.schedule[dayIndex].title}"?`,
               options: [
-                'Understanding core concepts',
-                'Memorizing facts only',
-                'Skipping difficult parts',
-                'Rushing through material'
+                "Understanding core concepts",
+                "Memorizing facts only",
+                "Skipping difficult parts",
+                "Rushing through material",
               ],
               correctAnswer: 0,
-              explanation: 'The main focus should be understanding core concepts to build a solid foundation.'
+              explanation:
+                "The main focus should be understanding core concepts to build a solid foundation.",
             },
             {
-              id: '2',
-              question: 'Which study technique is most effective for long-term retention?',
+              id: "2",
+              question:
+                "Which study technique is most effective for long-term retention?",
               options: [
-                'Passive reading',
-                'Active recall and spaced repetition',
-                'Highlighting everything',
-                'Cramming before tests'
+                "Passive reading",
+                "Active recall and spaced repetition",
+                "Highlighting everything",
+                "Cramming before tests",
               ],
               correctAnswer: 1,
-              explanation: 'Active recall and spaced repetition are proven to be the most effective for long-term retention.'
-            }
+              explanation:
+                "Active recall and spaced repetition are proven to be the most effective for long-term retention.",
+            },
           ],
-          passingScore: 70
+          passingScore: 70,
         };
-        
+
         onStartQuiz(fallbackQuiz, dayIndex, studyPlan.id);
       }
     } finally {
@@ -217,30 +262,39 @@ const StudyPlanDisplay: React.FC<StudyPlanDisplayProps> = ({
   };
 
   const shareProgress = async () => {
-    const progressPercentage = studyPlan.progress.totalTasks > 0 
-      ? Math.round((studyPlan.progress.completedTasks / studyPlan.progress.totalTasks) * 100)
-      : 0;
-    
+    const progressPercentage =
+      studyPlan.progress.totalTasks > 0
+        ? Math.round(
+            (studyPlan.progress.completedTasks /
+              studyPlan.progress.totalTasks) *
+              100,
+          )
+        : 0;
+
     const shareText = `🎓 Making great progress on my "${studyPlan.title}" study plan! ${progressPercentage}% complete with a ${incentiveData.currentStreak}-day study streak. Learning with PrepBuddy AI! 🚀`;
-    
+
     if (navigator.share) {
       try {
         await navigator.share({
-          title: 'My Study Progress',
+          title: "My Study Progress",
           text: shareText,
-          url: window.location.href
+          url: window.location.href,
         });
       } catch (error) {
         // Handle share cancellation or permission denied gracefully
-        if (error instanceof Error && error.name !== 'AbortError') {
+        if (error instanceof Error && error.name !== "AbortError") {
           // If it's not a user cancellation, fall back to clipboard
           try {
             await navigator.clipboard.writeText(shareText);
-            alert('Progress copied to clipboard!');
+            alert("Progress copied to clipboard!");
           } catch (clipboardError) {
             // Final fallback if clipboard also fails
-            console.error('Share and clipboard both failed:', error, clipboardError);
-            alert('Unable to share progress. Please try again.');
+            console.error(
+              "Share and clipboard both failed:",
+              error,
+              clipboardError,
+            );
+            alert("Unable to share progress. Please try again.");
           }
         }
         // If it's AbortError (user cancelled), do nothing
@@ -249,10 +303,10 @@ const StudyPlanDisplay: React.FC<StudyPlanDisplayProps> = ({
       // Fallback for browsers without native share support
       try {
         await navigator.clipboard.writeText(shareText);
-        alert('Progress copied to clipboard!');
+        alert("Progress copied to clipboard!");
       } catch (clipboardError) {
-        console.error('Clipboard access failed:', clipboardError);
-        alert('Unable to copy to clipboard. Please try again.');
+        console.error("Clipboard access failed:", clipboardError);
+        alert("Unable to copy to clipboard. Please try again.");
       }
     }
   };
@@ -262,121 +316,143 @@ const StudyPlanDisplay: React.FC<StudyPlanDisplayProps> = ({
       // Check AI request limits before showing AI coach
       const currentPlan = getCurrentPlan();
       const usage = await getUsage();
-      
-      if (currentPlan.limits.aiRequests !== 'unlimited') {
+
+      if (currentPlan.limits.aiRequests !== "unlimited") {
         if (usage.aiRequests >= currentPlan.limits.aiRequests) {
           throw new Error(
             `You've reached your limit of ${currentPlan.limits.aiRequests} AI requests per month. ` +
-            `Please upgrade your plan to use the AI coach.`
+              `Please upgrade your plan to use the AI coach.`,
           );
         }
       }
-      
+
       setSelectedTask(task);
       setShowAICoach(true);
     } catch (error) {
-      console.error('Failed to show AI coach:', error);
+      console.error("Failed to show AI coach:", error);
       if (error instanceof Error) {
         setSubscriptionError(error.message);
       }
     }
   };
 
-  const selectedDayData = studyPlan.schedule.find(day => day.day === selectedDay);
-  const completionRate = studyPlan.progress.totalTasks > 0 
-    ? (studyPlan.progress.completedTasks / studyPlan.progress.totalTasks) * 100 
-    : 0;
+  const selectedDayData = studyPlan.schedule.find(
+    (day) => day.day === selectedDay,
+  );
+  const completionRate =
+    studyPlan.progress.totalTasks > 0
+      ? (studyPlan.progress.completedTasks / studyPlan.progress.totalTasks) *
+        100
+      : 0;
 
   // Check if day is completed
-  const isDayCompleted = selectedDayData ? 
-    selectedDayData.tasks.every((_, index) => completedTasks.has(`${selectedDay - 1}-${index}`)) : false;
+  const isDayCompleted = selectedDayData
+    ? selectedDayData.tasks.every((_, index) =>
+        completedTasks.has(`${selectedDay - 1}-${index}`),
+      )
+    : false;
 
   // Get quiz results for current day
-  const quizResults = JSON.parse(localStorage.getItem(`quiz-results-${studyPlan.id}`) || '{}');
-  const dayQuizResult = selectedDayData?.quiz ? quizResults[selectedDayData.quiz.id] : null;
+  const quizResults = JSON.parse(
+    localStorage.getItem(`quiz-results-${studyPlan.id}`) || "{}",
+  );
+  const dayQuizResult = selectedDayData?.quiz
+    ? quizResults[selectedDayData.quiz.id]
+    : null;
 
   return (
     <div className="min-h-screen py-4 sm:py-8 px-4">
       <div className="max-w-7xl mx-auto">
         {/* Header - Mobile Optimized */}
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-4 sm:p-8 mb-6 sm:mb-8">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-8 mb-6 sm:mb-8">
           {/* Title and Description */}
           <div className="mb-6">
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">{studyPlan.title}</h1>
-            <p className="text-gray-600 text-base sm:text-lg">{studyPlan.description}</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">
+              {studyPlan.title}
+            </h1>
+            <p className="text-gray-600 dark:text-gray-400 text-base sm:text-lg">
+              {studyPlan.description}
+            </p>
           </div>
 
           {/* Action Buttons - Mobile Stack */}
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-6">
-            <button 
+            <button
               onClick={() => setShowAddFile(true)}
-              className="flex items-center justify-center px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors duration-200 border border-blue-200"
+              className="flex items-center justify-center px-4 py-2 text-blue-600  rounded-lg transition-colors duration-200 border border-blue-700"
             >
               <Plus className="h-5 w-5 mr-2" />
               Add File
             </button>
-            <button 
+            <button
               onClick={shareProgress}
-              className="flex items-center justify-center px-4 py-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors duration-200 border border-green-200"
+              className="flex items-center justify-center px-4 py-2 text-green-600 rounded-lg transition-colors duration-200 border border-green-700"
             >
               <Share className="h-5 w-5 mr-2" />
               Share Progress
-            </button>
-            <button className="flex items-center justify-center px-4 py-2 text-gray-600 hover:text-blue-600 transition-colors duration-200 border border-gray-200 rounded-lg">
-              <Download className="h-5 w-5 mr-2" />
-              Export
-            </button>
-            <button
-              onClick={onStartOver}
-              className="flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200"
-            >
-              <RefreshCw className="h-5 w-5 mr-2" />
-              Dashboard
             </button>
           </div>
 
           {/* Stats - Mobile Grid */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-6">
-            <div className="bg-blue-50 p-3 sm:p-4 rounded-xl">
+            <div className="bg-blue-50 dark:bg-blue-900/20 p-3 sm:p-4 rounded-xl">
               <div className="flex items-center mb-2">
                 <Calendar className="h-4 sm:h-5 w-4 sm:w-5 text-blue-600 mr-1 sm:mr-2" />
-                <span className="font-medium text-gray-900 text-sm sm:text-base">Duration</span>
+                <span className="font-medium text-gray-900 dark:text-white text-sm sm:text-base">
+                  Duration
+                </span>
               </div>
-              <p className="text-lg sm:text-2xl font-bold text-blue-600">{studyPlan.duration}</p>
-            </div>
-            
-            <div className="bg-green-50 p-3 sm:p-4 rounded-xl">
-              <div className="flex items-center mb-2">
-                <Target className="h-4 sm:h-5 w-4 sm:w-5 text-green-600 mr-1 sm:mr-2" />
-                <span className="font-medium text-gray-900 text-sm sm:text-base">Progress</span>
-              </div>
-              <p className="text-lg sm:text-2xl font-bold text-green-600">{Math.round(completionRate)}%</p>
-            </div>
-            
-            <div className="bg-purple-50 p-3 sm:p-4 rounded-xl">
-              <div className="flex items-center mb-2">
-                <BookOpen className="h-4 sm:h-5 w-4 sm:w-5 text-purple-600 mr-1 sm:mr-2" />
-                <span className="font-medium text-gray-900 text-sm sm:text-base">Files</span>
-              </div>
-              <p className="text-lg sm:text-2xl font-bold text-purple-600">{studyPlan.files.length}</p>
-            </div>
-            
-            <div className="bg-orange-50 p-3 sm:p-4 rounded-xl">
-              <div className="flex items-center mb-2">
-                <Clock className="h-4 sm:h-5 w-4 sm:w-5 text-orange-600 mr-1 sm:mr-2" />
-                <span className="font-medium text-gray-900 text-sm sm:text-base">Daily Time</span>
-              </div>
-              <p className="text-lg sm:text-2xl font-bold text-orange-600">
-                {selectedDayData?.estimatedTime || '1-hour'}
+              <p className="text-lg sm:text-2xl font-bold text-blue-600">
+                {studyPlan.duration}
               </p>
             </div>
 
-            <div className="bg-yellow-50 p-3 sm:p-4 rounded-xl col-span-2 sm:col-span-1">
+            <div className="bg-green-50 dark:bg-green-900/20 p-3 sm:p-4 rounded-xl">
+              <div className="flex items-center mb-2">
+                <Target className="h-4 sm:h-5 w-4 sm:w-5 text-green-600 mr-1 sm:mr-2" />
+                <span className="font-medium text-gray-900 dark:text-white text-sm sm:text-base">
+                  Progress
+                </span>
+              </div>
+              <p className="text-lg sm:text-2xl font-bold text-green-600">
+                {Math.round(completionRate)}%
+              </p>
+            </div>
+
+            <div className="bg-purple-50 dark:bg-purple-900/20 p-3 sm:p-4 rounded-xl">
+              <div className="flex items-center mb-2">
+                <BookOpen className="h-4 sm:h-5 w-4 sm:w-5 text-purple-600 mr-1 sm:mr-2" />
+                <span className="font-medium text-gray-900 dark:text-white text-sm sm:text-base">
+                  Files
+                </span>
+              </div>
+              <p className="text-lg sm:text-2xl font-bold text-purple-600">
+                {studyPlan.files.length}
+              </p>
+            </div>
+
+            <div className="bg-orange-50 dark:bg-orange-900/20 p-3 sm:p-4 rounded-xl">
+              <div className="flex items-center mb-2">
+                <Clock className="h-4 sm:h-5 w-4 sm:w-5 text-orange-600 mr-1 sm:mr-2" />
+                <span className="font-medium text-gray-900 dark:text-white text-sm sm:text-base">
+                  Daily Time
+                </span>
+              </div>
+              <p className="text-lg sm:text-2xl font-bold text-orange-600">
+                {selectedDayData?.estimatedTime || "1-hour"}
+              </p>
+            </div>
+
+            <div className="bg-yellow-50 dark:bg-yellow-900/20 p-3 sm:p-4 rounded-xl col-span-2 sm:col-span-1">
               <div className="flex items-center mb-2">
                 <Award className="h-4 sm:h-5 w-4 sm:w-5 text-yellow-600 mr-1 sm:mr-2" />
-                <span className="font-medium text-gray-900 text-sm sm:text-base">Level</span>
+                <span className="font-medium text-gray-900 dark:text-white text-sm sm:text-base">
+                  Level
+                </span>
               </div>
-              <p className="text-lg sm:text-2xl font-bold text-yellow-600">{incentiveData.level}</p>
+              <p className="text-lg sm:text-2xl font-bold text-yellow-600">
+                {incentiveData.level}
+              </p>
             </div>
           </div>
         </div>
@@ -385,35 +461,43 @@ const StudyPlanDisplay: React.FC<StudyPlanDisplayProps> = ({
         <div className="space-y-6 lg:space-y-0 lg:grid lg:grid-cols-3 lg:gap-8">
           {/* Schedule Overview - Mobile First */}
           <div className="lg:col-span-1 space-y-6">
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-4 sm:p-6">
-              <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-4 sm:mb-6">Study Schedule</h2>
-              <div className="space-y-2 max-h-80 sm:max-h-96 overflow-y-auto">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
+              <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white mb-4 sm:mb-6">
+                Study Schedule
+              </h2>
+              <div className="space-y-2 max-h-80 sm:max-h-96 overflow-y-auto dark:bg-gray-800">
                 {studyPlan.schedule.map((day) => {
-                  const dayCompleted = day.tasks.every((_, index) => 
-                    completedTasks.has(`${day.day - 1}-${index}`)
+                  const dayCompleted = day.tasks.every((_, index) =>
+                    completedTasks.has(`${day.day - 1}-${index}`),
                   );
-                  
+
                   return (
                     <button
-                      key={day.day}
+                      key={`${studyPlan.id}-${day.day}`}
                       onClick={() => setSelectedDay(day.day)}
                       className={`w-full text-left p-3 sm:p-4 rounded-lg transition-all duration-200 ${
                         selectedDay === day.day
-                          ? 'bg-blue-50 border-2 border-blue-200'
-                          : 'bg-gray-50 hover:bg-blue-50 border-2 border-transparent'
+                          ? "bg-blue-50 border-2 border-blue-200 dark:bg-blue-900/20 dark:border-blue-700"
+                          : "bg-gray-50 hover:bg-blue-50 border-2 border-transparent dark:bg-gray-700 dark:hover:bg-blue-900/10 dark:border-transparent"
                       }`}
                     >
                       <div className="flex justify-between items-start">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center mb-1">
-                            <span className="font-medium text-gray-900 text-sm sm:text-base">Day {day.day}</span>
+                            <span className="font-medium text-gray-900 dark:text-white text-sm sm:text-base">
+                              Day {day.day}
+                            </span>
                             {dayCompleted && (
                               <CheckCircle className="h-4 w-4 text-green-500 ml-2 flex-shrink-0" />
                             )}
                           </div>
-                          <div className="text-xs sm:text-sm text-gray-600 truncate pr-2">{day.title}</div>
+                          <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 truncate pr-2">
+                            {day.title}
+                          </div>
                         </div>
-                        <div className="text-xs text-gray-500 flex-shrink-0">{day.estimatedTime}</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">
+                          {day.estimatedTime}
+                        </div>
                       </div>
                     </button>
                   );
@@ -423,16 +507,23 @@ const StudyPlanDisplay: React.FC<StudyPlanDisplayProps> = ({
 
             {/* Files Section - Mobile Optimized */}
             {studyPlan.files.length > 0 && (
-              <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-4 sm:p-6">
-                <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-4">Study Files</h3>
+              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
+                <h3 className="text-base sm:text-lg font-bold dark:text-white text-gray-900 mb-4">
+                  Study Files
+                </h3>
                 <div className="space-y-3">
                   {studyPlan.files.map((file) => (
-                    <div key={file.id} className="flex items-center p-3 bg-gray-50 rounded-lg">
+                    <div
+                      key={file.id}
+                      className="flex items-center p-3 bg-gray-50 rounded-lg dark:bg-gray-700"
+                    >
                       <FileText className="h-5 w-5 text-blue-600 mr-3 flex-shrink-0" />
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-gray-900 text-sm truncate">{file.name}</p>
-                        <p className="text-xs text-gray-500">
-                          Added {file.addedAt.toLocaleDateString()}
+                        <p className="font-medium text-gray-900 text-sm truncate dark:text-white">
+                          {file.name}
+                        </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          Added {new Date(file.addedAt).toLocaleDateString()}
                         </p>
                       </div>
                     </div>
@@ -442,48 +533,39 @@ const StudyPlanDisplay: React.FC<StudyPlanDisplayProps> = ({
             )}
 
             {/* AI Coach Quick Access - Mobile Optimized */}
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-4 sm:p-6">
-              <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-4 flex items-center">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
+              <h3 className="text-base sm:text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center">
                 <Brain className="h-5 w-5 mr-2 text-blue-600" />
                 AI Learning Coach
               </h3>
-              <p className="text-gray-600 text-sm mb-4">
-                Get instant help with any task. Click the brain icon next to any task to start learning!
+              <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">
+                Get instant help with any task. Click the brain icon next to any
+                task to start learning!
               </p>
-              <div className="bg-blue-50 p-3 rounded-lg">
-                <p className="text-blue-800 text-xs">
-                  💡 <strong>Tip:</strong> The AI coach can explain concepts, provide examples, and guide you through difficult tasks.
+              <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
+                <p className="text-blue-800 dark:text-blue-400 text-xs">
+                  💡 <strong>Tip:</strong> The AI coach can explain concepts,
+                  provide examples, and guide you through difficult tasks.
                 </p>
-              </div>
-            </div>
-
-            {/* Social Features - Mobile Optimized */}
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-4 sm:p-6">
-              <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-4">Study Together</h3>
-              <div className="space-y-3">
-                <button className="w-full flex items-center p-3 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors">
-                  <Users className="h-5 w-5 text-blue-600 mr-3 flex-shrink-0" />
-                  <span className="text-blue-700 font-medium text-sm">Find Study Buddies</span>
-                </button>
-                <button className="w-full flex items-center p-3 bg-green-50 rounded-lg hover:bg-green-100 transition-colors">
-                  <MessageCircle className="h-5 w-5 text-green-600 mr-3 flex-shrink-0" />
-                  <span className="text-green-700 font-medium text-sm">Join Study Group</span>
-                </button>
               </div>
             </div>
           </div>
 
           {/* Day Details - Mobile Responsive */}
           <div className="lg:col-span-2">
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-4 sm:p-8">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-8">
               {/* Day Header - Mobile Stack */}
               <div className="flex flex-col space-y-4 sm:space-y-0 sm:flex-row sm:items-center sm:justify-between mb-6">
                 <div>
-                  <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Day {selectedDay}</h2>
-                  <p className="text-gray-600 text-base sm:text-lg">{selectedDayData?.title}</p>
+                  <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
+                    Day {selectedDay}
+                  </h2>
+                  <p className="text-gray-600 dark:text-gray-400 text-base sm:text-lg">
+                    {selectedDayData?.title}
+                  </p>
                 </div>
                 <div className="flex flex-col space-y-3 sm:space-y-0 sm:flex-row sm:items-center sm:space-x-4">
-                  <div className="text-sm text-gray-500">
+                  <div className="text-sm text-gray-500 dark:text-gray-400">
                     Estimated time: {selectedDayData?.estimatedTime}
                   </div>
                   {isDayCompleted && !dayQuizResult && (
@@ -506,7 +588,7 @@ const StudyPlanDisplay: React.FC<StudyPlanDisplayProps> = ({
                     </button>
                   )}
                   {dayQuizResult && (
-                    <div className="flex items-center justify-center px-4 py-2 bg-blue-100 text-blue-800 rounded-lg text-sm">
+                    <div className="flex items-center justify-center px-4 py-2 bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-400 rounded-lg text-sm">
                       <Award className="h-4 w-4 mr-2" />
                       Quiz: {dayQuizResult.score}%
                     </div>
@@ -516,39 +598,43 @@ const StudyPlanDisplay: React.FC<StudyPlanDisplayProps> = ({
 
               {/* Tasks Section - Mobile Optimized */}
               <div className="space-y-4">
-                <h3 className="font-semibold text-gray-900 text-base sm:text-lg">Today's Tasks</h3>
+                <h3 className="font-semibold text-gray-900 dark:text-white text-base sm:text-lg">
+                  Today's Tasks
+                </h3>
                 {selectedDayData?.tasks.map((task, index) => {
                   const taskId = `${selectedDay - 1}-${index}`;
                   const isCompleted = completedTasks.has(taskId);
-                  
+
                   return (
                     <div
                       key={taskId}
                       className={`flex items-start p-3 sm:p-4 rounded-lg border-2 transition-all duration-200 ${
                         isCompleted
-                          ? 'bg-green-50 border-green-200'
-                          : 'bg-gray-50 border-gray-200 hover:border-blue-200'
+                          ? "bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-700"
+                          : "bg-gray-50 border-gray-200 hover:border-blue-200 dark:bg-gray-700 dark:border-gray-600 dark:hover:border-blue-700"
                       }`}
                     >
-                      <div 
+                      <div
                         className={`w-6 h-6 rounded-full border-2 flex items-center justify-center mr-3 sm:mr-4 transition-all duration-200 cursor-pointer flex-shrink-0 mt-0.5 ${
                           isCompleted
-                            ? 'bg-green-500 border-green-500'
-                            : 'border-gray-300 hover:border-blue-400'
+                            ? "bg-green-500 border-green-500"
+                            : "border-gray-300 hover:border-blue-400 dark:border-gray-500 dark:hover:border-blue-500"
                         }`}
                         onClick={() => toggleTask(taskId)}
                       >
-                        {isCompleted && <CheckCircle className="h-4 w-4 text-white" />}
+                        {isCompleted && (
+                          <CheckCircle className="h-4 w-4 text-white" />
+                        )}
                       </div>
-                      <div 
-                        className={`flex-1 cursor-pointer text-sm sm:text-base leading-relaxed ${isCompleted ? 'text-green-700 line-through' : 'text-gray-900'}`}
+                      <div
+                        className={`flex-1 cursor-pointer text-sm sm:text-base leading-relaxed ${isCompleted ? "text-green-700 line-through dark:text-green-400" : "text-gray-900 dark:text-gray-200"}`}
                         onClick={() => toggleTask(taskId)}
                       >
                         {task}
                       </div>
                       <button
                         onClick={() => handleTaskHelp(task)}
-                        className="ml-3 sm:ml-4 p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors duration-200 flex-shrink-0"
+                        className="ml-3 sm:ml-4 p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors duration-200 flex-shrink-0 dark:hover:bg-blue-900/20"
                         title="Get AI help with this task"
                       >
                         <Brain className="h-4 sm:h-5 w-4 sm:w-5" />
@@ -559,15 +645,32 @@ const StudyPlanDisplay: React.FC<StudyPlanDisplayProps> = ({
               </div>
 
               {/* Study Tips - Mobile Optimized */}
-              <div className="mt-6 sm:mt-8 p-4 sm:p-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl">
-                <h4 className="font-semibold text-gray-900 mb-3 text-sm sm:text-base">Study Tips for Today</h4>
-                <ul className="text-xs sm:text-sm text-gray-700 space-y-2">
-                  <li>• Take breaks every 25-30 minutes using the Pomodoro technique</li>
-                  <li>• Create a distraction-free environment for optimal focus</li>
-                  <li>• Review previous day's material briefly before starting</li>
-                  <li>• Make notes of key concepts and questions for later review</li>
-                  <li>• Use the AI coach (🧠 icon) for help with any confusing tasks</li>
-                  <li>• Complete the quiz after finishing all tasks to test your understanding</li>
+              <div className="mt-6 sm:mt-8 p-4 sm:p-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl dark:from-blue-900/20 dark:to-indigo-900/20">
+                <h4 className="font-semibold text-gray-900 dark:text-white mb-3 text-sm sm:text-base">
+                  Study Tips for Today
+                </h4>
+                <ul className="text-xs sm:text-sm text-gray-700 dark:text-gray-300 space-y-2">
+                  <li>
+                    • Take breaks every 25-30 minutes using the Pomodoro
+                    technique
+                  </li>
+                  <li>
+                    • Create a distraction-free environment for optimal focus
+                  </li>
+                  <li>
+                    • Review previous day's material briefly before starting
+                  </li>
+                  <li>
+                    • Make notes of key concepts and questions for later review
+                  </li>
+                  <li>
+                    • Use the AI coach (🧠 icon) for help with any confusing
+                    tasks
+                  </li>
+                  <li>
+                    • Complete the quiz after finishing all tasks to test your
+                    understanding
+                  </li>
                 </ul>
               </div>
             </div>
@@ -575,19 +678,23 @@ const StudyPlanDisplay: React.FC<StudyPlanDisplayProps> = ({
         </div>
 
         {/* Topics Overview - Mobile Responsive */}
-        <div className="mt-6 sm:mt-8 bg-white rounded-2xl shadow-lg border border-gray-200 p-4 sm:p-8">
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">Learning Topics</h2>
+        <div className="mt-6 sm:mt-8 bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-8">
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-4 sm:mb-6">
+            Learning Topics
+          </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
             {studyPlan.topics.map((topic, index) => (
               <div
-                key={topic}
-                className="p-3 sm:p-4 bg-gradient-to-br from-gray-50 to-blue-50 rounded-lg border border-gray-200 hover:shadow-md transition-shadow duration-200"
+                key={`${topic}-${index}`}
+                className="p-3 sm:p-4 bg-gradient-to-br from-gray-50 to-blue-50 rounded-lg border border-gray-200 hover:shadow-md transition-shadow duration-200 dark:from-gray-700 dark:to-blue-900/20 dark:border-gray-700"
               >
                 <div className="flex items-center">
-                  <div className="bg-blue-100 text-blue-800 text-xs sm:text-sm font-medium px-2 py-1 rounded mr-2 sm:mr-3 flex-shrink-0">
+                  <div className="bg-blue-100 text-blue-800 text-xs sm:text-sm font-medium px-2 py-1 rounded mr-2 sm:mr-3 flex-shrink-0 dark:bg-blue-900/30 dark:text-blue-400">
                     {index + 1}
                   </div>
-                  <span className="font-medium text-gray-900 text-sm sm:text-base leading-tight">{topic}</span>
+                  <span className="font-medium text-gray-900 dark:text-white text-sm sm:text-base leading-tight">
+                    {topic}
+                  </span>
                 </div>
               </div>
             ))}
@@ -613,47 +720,54 @@ const StudyPlanDisplay: React.FC<StudyPlanDisplayProps> = ({
       {/* Add File Modal - Mobile Responsive */}
       {showAddFile && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-4 sm:p-6 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-md w-full p-4 sm:p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-6">
-              <h3 className="text-lg sm:text-xl font-bold text-gray-900">Add Study File</h3>
+              <h3 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">
+                Add Study File
+              </h3>
               <button
                 onClick={() => setShowAddFile(false)}
-                className="text-gray-400 hover:text-gray-600 p-1"
+                className="text-gray-400 hover:text-gray-600 p-1 dark:hover:text-gray-300"
               >
                 <X className="h-6 w-6" />
               </button>
             </div>
 
             {uploadError && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                <p className="text-red-700 text-sm">{uploadError}</p>
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg dark:bg-red-900/20 dark:border-red-700">
+                <p className="text-red-700 text-sm dark:text-red-400">
+                  {uploadError}
+                </p>
               </div>
             )}
 
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 sm:p-8 text-center">
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 sm:p-8 text-center dark:border-gray-600">
               {isUploadingFile ? (
                 <div>
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                  <p className="text-gray-600 text-sm">Processing file...</p>
+                  <p className="text-gray-600 text-sm dark:text-gray-400">
+                    Processing file...
+                  </p>
                 </div>
               ) : (
                 <>
-                  <Upload className="h-8 w-8 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-600 mb-4 text-sm">
-                    <label className="text-blue-600 hover:text-blue-700 cursor-pointer font-medium">
+                  <Upload className="h-8 w-8 text-gray-400 mx-auto mb-4 dark:text-gray-500" />
+                  <p className="text-gray-600 mb-4 text-sm dark:text-gray-400">
+                    <label className="text-blue-600 hover:text-blue-700 cursor-pointer font-medium dark:hover:text-blue-500">
                       Choose file to upload
                       <input
                         type="file"
                         className="hidden"
                         accept={FileProcessor.getAcceptString()}
                         onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) handleFileUpload(file);
+                          const files = Array.from(e.target.files || []);
+                          if (files.length > 0) handleFilesUpload(files);
                         }}
+                        multiple
                       />
                     </label>
                   </p>
-                  <p className="text-xs sm:text-sm text-gray-500">
+                  <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
                     Supports PDF, DOCX, TXT, MD, RTF, LaTeX, BibTeX (max 25MB)
                   </p>
                 </>
@@ -666,23 +780,27 @@ const StudyPlanDisplay: React.FC<StudyPlanDisplayProps> = ({
       {/* Subscription Error Modal */}
       {subscriptionError && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-md w-full p-6">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-bold text-gray-900">Subscription Limit Reached</h3>
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                Subscription Limit Reached
+              </h3>
               <button
                 onClick={() => setSubscriptionError(null)}
-                className="text-gray-400 hover:text-gray-600 p-1"
+                className="text-gray-400 hover:text-gray-600 p-1 dark:hover:text-gray-300"
               >
                 <X className="h-6 w-6" />
               </button>
             </div>
-            
-            <p className="text-gray-600 mb-6">{subscriptionError}</p>
-            
+
+            <p className="text-gray-600 dark:text-gray-400 mb-6">
+              {subscriptionError}
+            </p>
+
             <div className="flex justify-end space-x-3">
               <button
                 onClick={() => setSubscriptionError(null)}
-                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
               >
                 Close
               </button>
