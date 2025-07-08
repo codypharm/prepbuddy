@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation, useNavigate, Outlet } from 'react-router-dom';
 import {
   Plus,
   BarChart3,
@@ -12,26 +13,18 @@ import {
   TrendingUp,
   CreditCard,
   DollarSign,
-  AlertCircle,
+
 } from "lucide-react";
 import { StudyPlan } from "../App";
-import PlansPage from "./PlansPage";
-import AnalyticsPage from "./AnalyticsPage";
-import UnifiedInput from "./UnifiedInput";
-import StudyPlanGenerator from "./StudyPlanGenerator";
 import StreakTracker from "./StreakTracker";
 import AchievementSystem from "./AchievementSystem";
-import SocialFeatures from "./social/SocialFeatures";
 import { useSubscriptionStore } from "../stores/useSubscriptionStore";
 import { useUsageStore } from "../stores/useUsageStore";
 import LimitReachedModal from "./LimitReachedModal";
 
 interface DashboardProps {
   studyPlans: StudyPlan[];
-  onCreateNew: () => void;
   onViewPlan: (plan: StudyPlan) => void;
-  onDeletePlan: (planId: string) => void;
-  onPlanGenerated: (plan: StudyPlan) => void;
   incentiveData: {
     currentStreak: number;
     longestStreak: number;
@@ -46,18 +39,19 @@ interface DashboardProps {
 const Dashboard: React.FC<DashboardProps> = ({
   studyPlans,
   onViewPlan,
-  onDeletePlan,
-  onPlanGenerated,
   incentiveData,
 }) => {
-  const [activeTab, setActiveTab] = useState<
-    "overview" | "plans" | "create" | "generate" | "analytics" | "social"
-  >("overview");
-  const [inputData, setInputData] = useState<{
-    content: string;
-    fileName?: string;
-    hasFile: boolean;
-  } | null>(null);
+  const location = useLocation();
+  const navigate = useNavigate();
+  
+  // Get current active tab from URL path
+  const getActiveTab = () => {
+    const path = location.pathname.split('/')[2] || 'overview';
+    return path as "overview" | "plans" | "create" | "generate" | "analytics" | "social";
+  };
+  
+  const activeTab = getActiveTab();
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showLimitModal, setShowLimitModal] = useState(false);
   const [limitMessage, setLimitMessage] = useState('');
@@ -127,45 +121,10 @@ const Dashboard: React.FC<DashboardProps> = ({
     0
   );
 
-  const handleFormSubmit = (data: {
-    content: string;
-    fileName?: string;
-    hasFile: boolean;
-  }) => {
-    setInputData(data);
-    setActiveTab("generate");
-    setSidebarOpen(false); // Close sidebar on mobile after action
-  };
 
-  const handlePlanGenerated = (plan: StudyPlan) => {
-    const newPlan = {
-      ...plan,
-      files:
-        inputData?.hasFile && inputData?.fileName
-          ? [
-              {
-                id: Date.now().toString(),
-                name: inputData.fileName,
-                content: inputData.content,
-                addedAt: new Date(),
-              },
-            ]
-          : [],
-    };
-
-    onPlanGenerated(newPlan);
-    setInputData(null);
-    setActiveTab("overview");
-    setSidebarOpen(false);
-  };
-
-  const handleBackToCreate = () => {
-    setActiveTab("create");
-    setInputData(null);
-  };
 
   const handleTabChange = (tab: typeof activeTab) => {
-    setActiveTab(tab);
+    navigate(`/dashboard/${tab}`);
     setSidebarOpen(false); // Close sidebar on mobile after tab change
   };
 
@@ -768,45 +727,8 @@ const Dashboard: React.FC<DashboardProps> = ({
               </div>
             )}
 
-            {activeTab === "plans" && (
-              <PlansPage
-                studyPlans={studyPlans}
-                onCreateNew={handleCreateNewClick}
-                onViewPlan={onViewPlan}
-                onDeletePlan={onDeletePlan}
-              />
-            )}
-
-            {activeTab === "create" && (
-              <div>
-                <div className="mb-6 sm:mb-8">
-                  <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
-                    Create New Study Plan
-                  </h1>
-                  <p className="text-gray-600 text-sm sm:text-base">
-                    Transform your content into a personalized AI-powered
-                    learning experience
-                  </p>
-                </div>
-                <UnifiedInput onSubmit={handleFormSubmit} />
-              </div>
-            )}
-
-            {activeTab === "generate" && inputData && (
-              <StudyPlanGenerator
-                inputData={inputData}
-                onPlanGenerated={handlePlanGenerated}
-                onBack={handleBackToCreate}
-              />
-            )}
-
-            {activeTab === "analytics" && (
-              <AnalyticsPage studyPlans={studyPlans} />
-            )}
-
-            {activeTab === "social" && (
-              <SocialFeatures />
-            )}
+            {/* Nested Routes Content */}
+            <Outlet />
           </div>
         </div>
       </div>

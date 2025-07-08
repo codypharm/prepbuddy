@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Calendar, Clock, Target, BookOpen, Trash2, Eye, Search, Filter, CheckCircle, Brain } from 'lucide-react';
+import { Plus, Calendar, Target, BookOpen, Trash2, Eye, Search, Brain } from 'lucide-react';
 import { StudyPlan } from '../App';
 
 interface PlansPageProps {
@@ -135,21 +135,21 @@ const PlansPage: React.FC<PlansPageProps> = ({ studyPlans, onCreateNew, onViewPl
           )}
         </div>
       ) : (
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {filteredPlans.map((plan) => {
             const progressPercentage = plan.progress.totalTasks > 0 
               ? (plan.progress.completedTasks / plan.progress.totalTasks) * 100 
               : 0;
 
             return (
-              <div key={plan.id} className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-                <div className="p-6">
-                  <div className="flex justify-between items-start mb-4">
-                    <div className="flex-1">
+              <div key={plan.id} className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 overflow-hidden">
+                <div className="p-4 sm:p-6">
+                  <div className="flex flex-wrap justify-between items-start mb-4 gap-2">
+                    <div className="flex-1 min-w-0 mr-2">
                       <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2 line-clamp-2">{plan.title}</h3>
                       <p className="text-gray-600 dark:text-gray-400 text-sm line-clamp-2">{plan.description}</p>
                     </div>
-                    <div className="flex space-x-2 ml-4">
+                    <div className="flex space-x-2">
                       <button
                         onClick={() => onViewPlan(plan)}
                         className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
@@ -188,7 +188,7 @@ const PlansPage: React.FC<PlansPageProps> = ({ studyPlans, onCreateNew, onViewPl
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-4 pt-3 border-t border-gray-100 dark:border-gray-700">
+                    <div className="grid grid-cols-3 gap-2 sm:gap-4 pt-3 border-t border-gray-100 dark:border-gray-700">
                       <div className="text-center">
                         <div className="flex items-center justify-center mb-1">
                           <Calendar className="h-4 w-4 text-gray-400 mr-1" />
@@ -215,7 +215,7 @@ const PlansPage: React.FC<PlansPageProps> = ({ studyPlans, onCreateNew, onViewPl
                     {plan.files.length > 0 && (
                       <div className="pt-2 border-t border-gray-100 dark:border-gray-700">
                         <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{plan.files.length} file(s) attached</p>
-                        <div className="flex flex-wrap gap-1">
+                        <div className="flex flex-wrap gap-1 overflow-hidden">
                           {plan.files.slice(0, 2).map((file) => (
                             <span key={file.id} className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-1 rounded">
                               {file.name.length > 15 ? file.name.substring(0, 15) + '...' : file.name}

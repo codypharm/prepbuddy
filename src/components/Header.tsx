@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   BookOpen,
   User,
@@ -16,20 +17,12 @@ import ThemeToggle from "./ThemeToggle";
 import { useAuthStore } from "../stores/useAuthStore";
 
 interface HeaderProps {
-  onNavigate: (
-    view:
-      | "dashboard"
-      | "study"
-      | "quiz"
-      | "pricing"
-      | "billing"
-      | "landing"
-      | "billing-success"
-  ) => void;
-  currentView: string;
+  onNavigate: (path: string) => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ onNavigate, currentView }) => {
+const Header: React.FC<HeaderProps> = ({ onNavigate }) => {
+  const location = useLocation();
+  const navigate = useNavigate();
   // Use only one authentication source to avoid inconsistencies
   const { isAuthenticated, profile, signOut } = useAuthStore();
   const { getCurrentPlan, isSubscribed } = useSubscriptionStore();
@@ -42,7 +35,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, currentView }) => {
   const handleSignOut = () => {
     signOut();
     setShowUserMenu(false);
-    onNavigate("landing");
+    navigate("/");
   };
 
   const handleSettingsClick = () => {
@@ -70,8 +63,8 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, currentView }) => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <button
-              onClick={() => onNavigate("landing")}
-              className="flex items-center space-x-3 hover:opacity-80 transition-opacity"
+              onClick={() => navigate("/")}
+              className="flex items-center space-x-2 hover:opacity-80 transition-opacity"
             >
               <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-2 rounded-lg">
                 <BookOpen className="h-6 w-6 text-white" />
@@ -90,9 +83,9 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, currentView }) => {
             {userIsAuthenticated && (
               <nav className="hidden md:flex items-center space-x-6">
                 <button
-                  onClick={() => onNavigate("dashboard")}
+                  onClick={() => navigate("/dashboard")}
                   className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    currentView === "dashboard"
+                    location.pathname.startsWith("/dashboard")
                       ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
                       : "text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
                   }`}
@@ -100,9 +93,9 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, currentView }) => {
                   Dashboard
                 </button>
                 <button
-                  onClick={() => onNavigate("pricing")}
+                  onClick={() => navigate("/pricing")}
                   className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    currentView === "pricing"
+                    location.pathname === "/pricing"
                       ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
                       : "text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
                   }`}
@@ -110,9 +103,9 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, currentView }) => {
                   Pricing
                 </button>
                 <button
-                  onClick={() => onNavigate("billing")}
+                  onClick={() => navigate("/billing")}
                   className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    currentView === "billing"
+                    location.pathname.startsWith("/billing")
                       ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
                       : "text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
                   }`}
