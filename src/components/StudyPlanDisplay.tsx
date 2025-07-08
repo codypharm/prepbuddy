@@ -1,21 +1,18 @@
 import React, { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import {
   Calendar,
   Clock,
   Target,
   BookOpen,
   CheckCircle,
-  Download,
   Share,
-  RefreshCw,
   Plus,
   Upload,
   FileText,
   X,
   Play,
   Award,
-  Users,
-  MessageCircle,
   Brain,
 } from "lucide-react";
 import { StudyPlan, Quiz } from "../App";
@@ -26,7 +23,7 @@ import { useSubscriptionStore } from "../stores/useSubscriptionStore";
 import { useUsageStore } from "../stores/useUsageStore";
 
 interface StudyPlanDisplayProps {
-  studyPlan: StudyPlan;
+  studyPlans: StudyPlan[];
   onStartOver: () => void;
   onAddFile: (
     planId: string,
@@ -51,13 +48,29 @@ interface StudyPlanDisplayProps {
 }
 
 const StudyPlanDisplay: React.FC<StudyPlanDisplayProps> = ({
-  studyPlan,
-  onStartOver,
+  studyPlans,
   onAddFile,
   onTaskComplete,
   onStartQuiz,
   incentiveData,
 }) => {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  
+  // Find the study plan by ID from URL params
+  const studyPlan = studyPlans.find(plan => plan.id === id);
+  
+  // If plan not found, redirect to dashboard
+  useEffect(() => {
+    if (!studyPlan) {
+      navigate('/dashboard/plans');
+    }
+  }, [studyPlan, navigate]);
+  
+  // Don't render if plan not found
+  if (!studyPlan) {
+    return null;
+  }
   const [selectedDay, setSelectedDay] = useState(1);
   const [completedTasks, setCompletedTasks] = useState<Set<string>>(new Set());
   const [showAddFile, setShowAddFile] = useState(false);
@@ -209,8 +222,7 @@ const StudyPlanDisplay: React.FC<StudyPlanDisplayProps> = ({
         questionCount: 5,
       });
 
-      // Add quiz to the day and trigger quiz start
-      const updatedDay = { ...day, quiz };
+      // Trigger quiz start
       onStartQuiz(quiz, dayIndex, studyPlan.id);
     } catch (error) {
       console.error("Failed to generate quiz:", error);
@@ -377,6 +389,13 @@ const StudyPlanDisplay: React.FC<StudyPlanDisplayProps> = ({
 
           {/* Action Buttons - Mobile Stack */}
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-6">
+            <button
+              onClick={() => navigate('/dashboard/plans')}
+              className="flex items-center justify-center px-4 py-2 text-purple-600 rounded-lg transition-colors duration-200 border border-purple-700"
+            >
+              <FileText className="h-5 w-5 mr-2" />
+              Back to Study Plans
+            </button>
             <button
               onClick={() => setShowAddFile(true)}
               className="flex items-center justify-center px-4 py-2 text-blue-600  rounded-lg transition-colors duration-200 border border-blue-700"
@@ -708,7 +727,7 @@ const StudyPlanDisplay: React.FC<StudyPlanDisplayProps> = ({
           studyPlans={[studyPlan]}
           currentPlan={studyPlan}
           currentDay={selectedDay}
-          currentTask={selectedTask}
+          currentTask={selectedTask || undefined}
           mode="contextual"
           onClose={() => {
             setShowAICoach(false);
