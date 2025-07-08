@@ -54,28 +54,40 @@ export const useTaskCompletionStore = create<TaskCompletionState>()(
 
       fetchCompletions: async (studyPlanId) => {
         set({ isLoading: true, error: null });
-        
+
         try {
           const user = await requireAuth();
-          
+
           let query = supabase
-            .from('task_completions')
-            .select('*')
-            .eq('user_id', user.id);
+            .from("task_completions")
+            .select("*")
+            .eq("user_id", user.id);
 
           if (studyPlanId) {
-            query = query.eq('study_plan_id', studyPlanId);
+            query = query.eq("study_plan_id", studyPlanId);
           }
 
-          const { data, error } = await query.order('completed_at', { ascending: false });
+          const { data, error } = await query.order("completed_at", {
+            ascending: false,
+          });
 
           if (error) throw error;
 
-          const completions = data.map(convertToTaskCompletion);
-          
-          set({
-            completions,
-            isLoading: false,
+          const fetchedCompletions = data.map(convertToTaskCompletion);
+
+          set(state => {
+            const fetchedIds = new Set(fetchedCompletions.map(c => c.id));
+            const optimisticCompletions = state.completions.filter(
+              c => !fetchedIds.has(c.id),
+            );
+            const mergedCompletions = [
+              ...fetchedCompletions,
+              ...optimisticCompletions,
+            ];
+            mergedCompletions.sort(
+              (a, b) => b.completedAt.getTime() - a.completedAt.getTime(),
+            );
+            return { completions: mergedCompletions, isLoading: false, error: null };
           });
         } catch (error: any) {
           set({

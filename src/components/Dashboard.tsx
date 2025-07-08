@@ -36,7 +36,7 @@ interface DashboardProps {
   };
 }
 
-const Dashboard: React.FC<DashboardProps> = ({
+const Dashboard: React.FC<DashboardProps> = React.memo(({
   studyPlans,
   onViewPlan,
   incentiveData,
@@ -743,6 +743,6 @@ const Dashboard: React.FC<DashboardProps> = ({
       />
     </div>
   );
-};
+});
 
 export default Dashboard;

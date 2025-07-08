@@ -66,8 +66,10 @@ const QuizComponent: React.FC<QuizComponentProps> = ({ quiz, onComplete, onBack 
       passed
     };
 
+    // Save the result but stay on the results page
+    onComplete(result);
     setShowResults(true);
-    setTimeout(() => onComplete(result), 3000); // Auto-close after 3 seconds
+    // No automatic redirect - user will click button to return
   };
 
   const handleRetry = () => {
@@ -198,18 +200,18 @@ const QuizComponent: React.FC<QuizComponentProps> = ({ quiz, onComplete, onBack 
               {!passed && (
                 <button
                   onClick={handleRetry}
-                  className="flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200"
+                  className="flex items-center justify-center px-6 py-3 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200 transition-colors duration-200"
                 >
                   <RotateCcw className="h-5 w-5 mr-2" />
-                  Retry Quiz
+                  Try Again
                 </button>
               )}
               <button
                 onClick={onBack}
-                className="flex items-center px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors duration-200"
+                className="flex items-center justify-center px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200"
               >
                 <ArrowLeft className="h-5 w-5 mr-2" />
-                Back to Study
+                Return to Study Plan
               </button>
             </div>
           </div>
