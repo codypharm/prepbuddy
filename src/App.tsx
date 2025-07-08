@@ -99,6 +99,7 @@ function AppContent() {
     updateStudyPlan,
     deleteStudyPlan,
     addStudyPlanLocally,
+    updateStudyPlanLocally,
     fetchStudyPlans,
   } = useStudyPlanStore();
   const {
@@ -228,6 +229,8 @@ function AppContent() {
   const handlePlanGenerated = async (plan: StudyPlan) => {
     const newPlan = {
       ...plan,
+      // Ensure files array is properly initialized for new plans
+      files: plan.files || [],
       progress: {
         completedTasks: 0,
         totalTasks: plan.schedule.reduce(
@@ -273,17 +276,36 @@ function AppContent() {
 
   const handleDeletePlan = async (planId: string) => {
     try {
+      // Call the store's deleteStudyPlan function directly
+      // The store already handles local deletion first for immediate UI update
       await deleteStudyPlan(planId);
 
       // Navigation will happen automatically through route changes if needed
     } catch (error) {
       console.error("Failed to delete study plan:", error);
+      // If deletion fails, we should refetch plans to restore accurate state
+      fetchStudyPlans();
     }
   };
 
   const handleAddFileToPlan = async (
     planId: string,
-    filesData: { file: File; content: string }[]
+    filesData: { file: File; content: string }[],
+    updates?: {
+      schedule?: Array<{
+        day: number;
+        title: string;
+        tasks: string[];
+        estimatedTime: string;
+        completed?: boolean;
+      }>;
+      progress?: {
+        completedTasks: number;
+        totalTasks: number;
+        completedDays: number;
+        totalDays: number;
+      };
+    }
   ) => {
     const plan = studyPlans.find((p) => p.id === planId);
     if (!plan) return;
@@ -293,6 +315,7 @@ function AppContent() {
         .toString(36)
         .substring(2, 15)}`;
       console.log("Generated file ID:", newId);
+      // Create file object matching the StudyPlan interface structure
       return {
         id: newId,
         name: data.file.name,
@@ -300,16 +323,34 @@ function AppContent() {
         addedAt: new Date(),
       };
     });
+    
+    console.log("Adding new files:", newFiles);
 
+    // Create updated plan with new files and optional schedule/progress updates
+    // Ensure files array is initialized before spreading
     const updatedPlan = {
       ...plan,
-      files: [...plan.files, ...newFiles],
+      files: [...(plan.files || []), ...newFiles],
+      ...(updates?.schedule ? { schedule: updates.schedule } : {}),
+      ...(updates?.progress ? { progress: updates.progress } : {}),
     };
+    
+    console.log("Updated plan files:", updatedPlan.files);
 
     try {
-      await updateStudyPlan(planId, { files: updatedPlan.files });
+      // Update backend
+      const updateData: Partial<StudyPlan> = { files: updatedPlan.files };
+      if (updates?.schedule) updateData.schedule = updates.schedule;
+      if (updates?.progress) updateData.progress = updates.progress;
+      await updateStudyPlan(planId, updateData);
 
-      // No need to update currentPlan as we're using URL parameters now
+      // Important: Update the local state after updating the backend
+      // This ensures we immediately see the updated files in the UI
+      updateStudyPlanLocally(planId, {
+        files: updatedPlan.files,
+        ...(updates?.schedule ? { schedule: updates.schedule } : {}),
+        ...(updates?.progress ? { progress: updates.progress } : {}),
+      });
     } catch (error) {
       console.error("Failed to add file(s) to plan:", error);
     }

@@ -1,10 +1,16 @@
 import React from 'react';
 import UnifiedInput from '../UnifiedInput';
 
+// Import the FileData interface from UnifiedInput
+interface FileData {
+  file: File;
+  content: string;
+}
+
 interface DashboardCreateProps {
   onSubmit: (data: {
     content: string;
-    fileName?: string;
+    files?: FileData[];
     hasFile: boolean;
   }) => void;
 }

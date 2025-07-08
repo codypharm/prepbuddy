@@ -1,27 +1,57 @@
-import React, { useCallback, useState } from 'react';
-import { Upload, Type, File, CheckCircle, AlertCircle, X, FileText, BookOpen, GraduationCap, Brain } from 'lucide-react';
+import React, { useCallback, useState, useEffect } from 'react';
+import { Upload, Type, FileText, CheckCircle, AlertCircle, X, BookOpen, GraduationCap, Brain, ArrowUpRight } from 'lucide-react';
 import { FileProcessor } from '../services/fileProcessor';
 import { useSubscriptionStore } from '../stores/useSubscriptionStore';
 import { useUsageStore } from '../stores/useUsageStore';
 import LimitReachedModal from './LimitReachedModal';
+import { useNavigate } from 'react-router-dom';
+
+// Define a file data structure to pass both file metadata and content
+interface FileData {
+  file: File;
+  content: string;
+}
 
 interface UnifiedInputProps {
-  onSubmit: (data: { content: string; fileNames?: string[]; hasFile: boolean }) => void;
+  onSubmit: (data: { content: string; files?: FileData[]; hasFile: boolean }) => void;
 }
 
 const UnifiedInput: React.FC<UnifiedInputProps> = ({ onSubmit }) => {
+  const navigate = useNavigate();
   const [isDragOver, setIsDragOver] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+  const [uploadedFiles, setUploadedFiles] = useState<FileData[]>([]);
   const [textContent, setTextContent] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [extractedContent, setExtractedContent] = useState<string>('');
   const [showLimitModal, setShowLimitModal] = useState(false);
   const [limitMessage, setLimitMessage] = useState('');
+  const [planLimitReached, setPlanLimitReached] = useState(false);
 
   // Get subscription and usage data
   const { getCurrentPlan } = useSubscriptionStore();
   const { getUsage, incrementUsage } = useUsageStore();
+  
+  // Check if user has reached their plan limit on component mount
+  useEffect(() => {
+    const checkPlanLimits = async () => {
+      try {
+        const currentPlan = getCurrentPlan();
+        const usage = await getUsage();
+        
+        if (currentPlan.limits.studyPlans !== 'unlimited' && 
+            usage.studyPlansCreated >= currentPlan.limits.studyPlans) {
+          setPlanLimitReached(true);
+        } else {
+          setPlanLimitReached(false);
+        }
+      } catch (error) {
+        console.error('Failed to check plan limits:', error);
+      }
+    };
+    
+    checkPlanLimits();
+  }, []);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -52,8 +82,8 @@ const UnifiedInput: React.FC<UnifiedInputProps> = ({ onSubmit }) => {
         throw new Error('File upload limit reached');
       }
 
-      const newFiles = [...uploadedFiles];
-      let newContent = extractedContent;
+      const newFiles: FileData[] = [];
+      let newContent = '';
 
       for (const file of files) {
         // Check storage limits
@@ -101,7 +131,11 @@ const UnifiedInput: React.FC<UnifiedInputProps> = ({ onSubmit }) => {
           throw new Error(`File ${file.name} content is too short. Please provide more substantial content for analysis.`);
         }
 
-        newFiles.push(file);
+        // Store both file and its content
+        newFiles.push({
+          file,
+          content
+        });
         newContent += content + '\n\n';
 
         // Track file upload usage
@@ -164,9 +198,10 @@ const UnifiedInput: React.FC<UnifiedInputProps> = ({ onSubmit }) => {
         }
       }
 
+      // Pass both the combined content and file data objects with individual content
       onSubmit({
         content: combinedContent,
-        fileNames: uploadedFiles.map(f => f.name),
+        files: uploadedFiles, // Pass actual file data objects with content
         hasFile: uploadedFiles.length > 0
       });
     } catch (error) {
@@ -182,8 +217,9 @@ const UnifiedInput: React.FC<UnifiedInputProps> = ({ onSubmit }) => {
     setError(null);
   };
 
-  const removeFile = (fileToRemove: File) => {
-    const newFiles = uploadedFiles.filter(file => file !== fileToRemove);
+  const removeFile = (index: number) => {
+    const newFiles = [...uploadedFiles];
+    newFiles.splice(index, 1);
     setUploadedFiles(newFiles);
   };
 
@@ -232,21 +268,21 @@ const UnifiedInput: React.FC<UnifiedInputProps> = ({ onSubmit }) => {
             
             {uploadedFiles.length > 0 ? (
               <div className="space-y-4">
-                {uploadedFiles.map((file, index) => (
+                {uploadedFiles.map((fileData, index) => (
                   <div key={index} className="bg-green-50 dark:bg-green-900/20 border-2 border-green-200 dark:border-green-700 rounded-xl p-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center">
                         <FileText className="h-8 w-8 text-green-600 mr-3" />
                         <div>
-                          <p className="font-medium text-green-900 dark:text-green-400">{file.name}</p>
+                          <p className="font-medium text-green-900 dark:text-green-400">{fileData.file.name}</p>
                           <p className="text-sm text-green-700 dark:text-green-400">
-                            {(file.size / 1024 / 1024).toFixed(2)} MB
+                            {(fileData.file.size / 1024 / 1024).toFixed(2)} MB
                           </p>
                         </div>
                       </div>
                       <button
                         type="button"
-                        onClick={() => removeFile(file)}
+                        onClick={() => removeFile(index)}
                         className="text-green-600 hover:text-green-800 dark:hover:text-green-400 p-2"
                       >
                         <X className="h-5 w-5" />
@@ -353,34 +389,63 @@ const UnifiedInput: React.FC<UnifiedInputProps> = ({ onSubmit }) => {
               {uploadedFiles.length > 0 && (
                 <div className="mt-2">
                   <span className="font-medium text-gray-700 dark:text-gray-300">Source File(s): </span>
-                  <span className="text-gray-600 dark:text-gray-400">{uploadedFiles.map(f => f.name).join(', ')}</span>
+                  <span className="text-gray-600 dark:text-gray-400">
+                    {uploadedFiles.map(fileData => fileData.file.name).join(', ')}
+                  </span>
                 </div>
               )}
             </div>
           )}
 
-          {/* Submit Button */}
-          <button
-            type="submit"
-            disabled={!isValid || isProcessing}
-            className={`w-full py-4 px-8 rounded-xl font-semibold text-lg transition-all duration-200 flex items-center justify-center ${
-              isValid && !isProcessing
-                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5'
-                : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed'
-            }`}
-          >
-            {isProcessing ? (
-              <>
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white mr-2"></div>
-                Processing...
-              </>
-            ) : (
-              <>
-                <Brain className="h-6 w-6 mr-2" />
-                Generate AI Study Plan with PrepBuddy
-              </>
-            )}
-          </button>
+          {/* Plan Limit Notice and Upgrade Button */}
+          {planLimitReached && (
+            <div className="mb-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg">
+              <div className="flex items-start">
+                <AlertCircle className="h-5 w-5 text-yellow-600 dark:text-yellow-400 mr-3 mt-0.5 flex-shrink-0" />
+                <div>
+                  <h3 className="font-medium text-yellow-800 dark:text-yellow-300 mb-1">Study Plan Limit Reached</h3>
+                  <p className="text-yellow-700 dark:text-yellow-200 text-sm">
+                    You've reached your monthly limit for creating study plans. Upgrade your plan to create more study plans and unlock additional features.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {/* Submit Button or Upgrade Button */}
+          {planLimitReached ? (
+            <button
+              type="button"
+              onClick={() => navigate('/settings/subscription')}
+              className="w-full py-4 px-8 rounded-xl font-semibold text-lg transition-all duration-200 flex items-center justify-center
+                bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:from-purple-700 hover:to-pink-700 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+            >
+              <ArrowUpRight className="h-6 w-6 mr-2" />
+              Upgrade Plan to Create More Study Plans
+            </button>
+          ) : (
+            <button
+              type="submit"
+              disabled={!isValid || isProcessing}
+              className={`w-full py-4 px-8 rounded-xl font-semibold text-lg transition-all duration-200 flex items-center justify-center ${
+                isValid && !isProcessing
+                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5'
+                  : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed'
+              }`}
+            >
+              {isProcessing ? (
+                <>
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white mr-2"></div>
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <Brain className="h-6 w-6 mr-2" />
+                  Generate AI Study Plan with PrepBuddy
+                </>
+              )}
+            </button>
+          )}
 
           {/* Features List */}
           <div className="grid md:grid-cols-3 gap-6 pt-6 border-t border-gray-200 dark:border-gray-700">
@@ -400,12 +465,14 @@ const UnifiedInput: React.FC<UnifiedInputProps> = ({ onSubmit }) => {
         </form>
       </div>
 
-      {/* Subscription Limit Modal */}
       <LimitReachedModal
         isOpen={showLimitModal}
-        onClose={() => setShowLimitModal(false)}
+        onClose={() => {
+          setShowLimitModal(false);
+          setLimitMessage("");
+        }}
         message={limitMessage}
-        featureName={limitMessage.includes('AI') ? 'AI Requests' : limitMessage.includes('file') ? 'File Uploads' : 'Storage'}
+        featureName="File Upload"
         currentPlan={getCurrentPlan().name}
       />
     </div>
