@@ -1,15 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Settings, Calendar, Clock, Target, Sparkles, AlertCircle, Zap, Brain, CheckCircle, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Calendar, Clock, Target, Sparkles, AlertCircle, Zap, Brain, CheckCircle, ExternalLink } from 'lucide-react';
 import { StudyPlan } from '../App';
 import { AIService } from '../services/aiService';
 import { useSubscriptionStore } from '../stores/useSubscriptionStore';
 import { useUsageStore } from '../stores/useUsageStore';
 import LimitReachedModal from './LimitReachedModal';
 
+// Define FileData interface to match UnifiedInput
+interface FileData {
+  file: File;
+  content: string;
+}
+
 interface StudyPlanGeneratorProps {
   inputData: {
     content: string;
-    fileName?: string;
+    files?: FileData[];
     hasFile: boolean;
   };
   onPlanGenerated: (plan: StudyPlan) => void;
@@ -97,27 +103,44 @@ const StudyPlanGenerator: React.FC<StudyPlanGeneratorProps> = ({
         studyTime: preferences.studyTime,
         difficulty: preferences.difficulty,
         contentType: inputData.hasFile ? 'file' : 'text',
-        fileName: inputData.fileName,
+        fileName: inputData.files && inputData.files.length > 0 ? inputData.files[0].file.name : undefined,
       });
 
       // Convert AI response to our StudyPlan format
-      const plan: StudyPlan = {
-        id: Date.now().toString(),
+      // Create the full study plan object
+      const studyPlan: StudyPlan = {
+        id: crypto.randomUUID(),
         title: aiPlan.title,
         description: aiPlan.description,
+        topics: aiPlan.topics || [],
+        schedule: aiPlan.schedule || [],
+        createdAt: new Date(),
+        progress: {
+          completedTasks: 0,
+          totalTasks: aiPlan.schedule ? aiPlan.schedule.reduce(
+            (total: number, day: any) => total + day.tasks.length,
+            0
+          ) : 0,
+          completedDays: 0,
+          totalDays: aiPlan.schedule ? aiPlan.schedule.length : 0,
+        },
         duration: preferences.duration,
         difficulty: preferences.difficulty,
-        topics: aiPlan.topics,
-        schedule: aiPlan.schedule,
-        createdAt: new Date(),
+        // StudyPlan interface doesn't have quizzes or completedAt
+        files: inputData.files?.map(fileData => ({
+          id: crypto.randomUUID(),
+          name: fileData.file.name,
+          content: fileData.content,
+          addedAt: new Date()
+        })) || [],
       };
 
       // Track AI usage after successful generation
       await incrementUsage('aiRequests');
       
-      console.log('✅ Study plan generated successfully!', plan);
+      console.log('✅ Study plan generated successfully!', studyPlan);
       setIsGenerating(false);
-      onPlanGenerated(plan);
+      onPlanGenerated(studyPlan);
     } catch (error) {
       console.error('❌ Study plan generation failed:', error);
       setIsGenerating(false);
@@ -385,10 +408,10 @@ const StudyPlanGenerator: React.FC<StudyPlanGeneratorProps> = ({
                   <span className="font-medium text-gray-700">Key Topics: </span>
                   <span className="text-gray-600">{contentAnalysis.topics.join(', ')}</span>
                 </div>
-                {inputData.fileName && (
+                {inputData.files && inputData.files.length > 0 && (
                   <div className="mt-2">
                     <span className="font-medium text-gray-700">Source: </span>
-                    <span className="text-gray-600">{inputData.fileName}</span>
+                    <span className="text-gray-600">{inputData.files[0].file.name}</span>
                   </div>
                 )}
               </div>

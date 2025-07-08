@@ -25,14 +25,30 @@ import { useSubscriptionStore } from "../stores/useSubscriptionStore";
 import { useUsageStore } from "../stores/useUsageStore";
 import { useTaskCompletionStore } from "../stores/useTaskCompletionStore";
 import { useQuizStore } from "../stores/useQuizStore";
+import FileIntentModal from "./modals/FileIntentModal";
 
 interface StudyPlanDisplayProps {
   studyPlans: StudyPlan[];
   onStartOver: () => void;
   onAddFile: (
     planId: string,
-    filesData: { file: File; content: string }[]
-  ) => void;
+    filesData: { file: File; content: string }[],
+    updates?: {
+      schedule?: Array<{
+        day: number;
+        title: string;
+        tasks: string[];
+        estimatedTime: string;
+        completed?: boolean;
+      }>;
+      progress?: {
+        completedTasks: number;
+        totalTasks: number;
+        completedDays: number;
+        totalDays: number;
+      };
+    }
+  ) => Promise<void>;
   onTaskComplete?: (planId: string, dayIndex: number, taskIndex: number, completed: boolean) => Promise<void>;
   onStartQuiz?: (quiz: any, dayIndex: number, planId: string) => void;
   incentiveData: {
@@ -98,6 +114,9 @@ const StudyPlanDisplay: React.FC<StudyPlanDisplayProps> = ({
   const [generatingQuiz, setGeneratingQuiz] = useState<number | null>(null);
   const [showAICoach, setShowAICoach] = useState(false);
   const [selectedTask, setSelectedTask] = useState<string | null>(null);
+  const [showFileIntentModal, setShowFileIntentModal] = useState(false);
+  const [pendingUploadedFiles, setPendingUploadedFiles] = useState<{file: File; content: string}[]>([]);
+  const [processingAI, setProcessingAI] = useState(false);
   const [subscriptionError, setSubscriptionError] = useState<string | null>(
     null
   );
@@ -113,6 +132,9 @@ const StudyPlanDisplay: React.FC<StudyPlanDisplayProps> = ({
   if (!studyPlan) {
     return null;
   }
+  
+  // Debug log files
+  console.log("StudyPlanDisplay - studyPlan files:", studyPlan.files);
 
   const toggleTask = async (taskId: string) => {
     const [dayIndex, taskIndex] = taskId.split("-").map(Number);
@@ -210,7 +232,10 @@ const StudyPlanDisplay: React.FC<StudyPlanDisplayProps> = ({
         const result = await processSingleFileUpload(file);
         uploadedData.push(result);
       }
-      await onAddFile(studyPlan.id, uploadedData);
+      
+      // Store the uploaded files and show the intent modal
+      setPendingUploadedFiles(uploadedData);
+      setShowFileIntentModal(true);
       setShowAddFile(false);
     } catch (error) {
       setUploadError(
@@ -441,6 +466,90 @@ const StudyPlanDisplay: React.FC<StudyPlanDisplayProps> = ({
     URL.revokeObjectURL(url);
   };
   
+  // Handle the user's intent selection for uploaded files
+  const handleFileIntentSelection = async (intent: "reference" | "extend" | "enhance") => {
+    if (pendingUploadedFiles.length === 0) {
+      setShowFileIntentModal(false);
+      return;
+    }
+    
+    try {
+      if (intent === "reference") {
+        // Simply add the files as reference materials (original behavior)
+        await onAddFile(studyPlan.id, pendingUploadedFiles);
+      } else {
+        setProcessingAI(true);
+        
+        // First add the files to make them available
+        await onAddFile(studyPlan.id, pendingUploadedFiles);
+        
+        // We'll use just the content of the files for analysis
+        // (instead of trying to concat incompatible file types)
+        
+        if (intent === "extend") {
+          // Extend the study plan with new days
+          const currentDaysCount = studyPlan.schedule.length;
+          const existingTopics = studyPlan.schedule.map(day => day.title);
+          
+          // Generate new study days based on the new content
+          const extendedPlan = await AIService.extendStudyPlan({
+            existingPlan: studyPlan,
+            newContent: pendingUploadedFiles.map(f => f.content).join("\n\n"),
+            existingTopics,
+            currentDaysCount
+          });
+          
+          // Update the study plan with extended schedule
+          if (extendedPlan && extendedPlan.newDays && extendedPlan.newDays.length > 0) {
+            const updatedSchedule = [...studyPlan.schedule, ...extendedPlan.newDays];
+            const updatedProgress = {
+              ...studyPlan.progress,
+              totalDays: updatedSchedule.length,
+              totalTasks: updatedSchedule.reduce((sum: number, day: { tasks: string[] }) => sum + day.tasks.length, 0)
+            };
+            
+            // Update the plan with new days and progress
+            await onAddFile(studyPlan.id, [], {
+              schedule: updatedSchedule,
+              progress: updatedProgress
+            });
+          }
+          
+        } else if (intent === "enhance") {
+          // Enhance existing days with new tasks or modify existing content
+          const enhancedPlan = await AIService.enhanceStudyPlan({
+            existingPlan: studyPlan,
+            newContent: pendingUploadedFiles.map(f => f.content).join("\n\n")
+          });
+          
+          if (enhancedPlan && enhancedPlan.updatedSchedule) {
+            const updatedProgress = {
+              ...studyPlan.progress,
+              totalTasks: enhancedPlan.updatedSchedule.reduce((sum: number, day: { tasks: string[] }) => sum + day.tasks.length, 0)
+            };
+            
+            // Update the plan with enhanced days and progress
+            await onAddFile(studyPlan.id, [], {
+              schedule: enhancedPlan.updatedSchedule,
+              progress: updatedProgress
+            });
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error processing file intent:", error);
+      setUploadError(
+        error instanceof Error 
+          ? `Error using files to ${intent} plan: ${error.message}` 
+          : `Failed to ${intent} plan with uploaded files`
+      );
+    } finally {
+      setProcessingAI(false);
+      setShowFileIntentModal(false);
+      setPendingUploadedFiles([]);
+    }
+  };
+  
   // Handle day selection with restrictions
   const handleDaySelection = (dayNumber: number) => {
     // Always allow selection of current day or previous days
@@ -481,6 +590,26 @@ const StudyPlanDisplay: React.FC<StudyPlanDisplayProps> = ({
 
   return (
     <div className="min-h-screen py-4 sm:py-8 px-4">
+      {/* File Intent Modal */}
+      <FileIntentModal
+        isOpen={showFileIntentModal}
+        onClose={() => setShowFileIntentModal(false)}
+        onSelectIntent={handleFileIntentSelection}
+        fileCount={pendingUploadedFiles.length}
+      />
+      
+      {/* AI Processing Overlay */}
+      {processingAI && (
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-md w-full text-center">
+            <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500 mx-auto mb-4"></div>
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Processing your content</h3>
+            <p className="text-gray-600 dark:text-gray-400">
+              Our AI is analyzing your files to update your study plan. This may take a minute...  
+            </p>
+          </div>
+        </div>
+      )}
       <div className="max-w-7xl mx-auto">
         {/* Header - Mobile Optimized */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-8 mb-6 sm:mb-8">

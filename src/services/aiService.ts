@@ -1,6 +1,7 @@
 // Real AI Service using free providers
 import { useSubscriptionStore } from '../stores/useSubscriptionStore';
 import { useUsageStore } from '../stores/useUsageStore';
+import { StudyPlan } from '../App';
 
 export interface StudyPlanRequest {
   content: string;
@@ -43,11 +44,125 @@ export interface GeneratedQuiz {
   passingScore: number;
 }
 
+export interface StudyPlanExtendRequest {
+  existingPlan: StudyPlan;
+  newContent: string;
+  existingTopics: string[];
+  currentDaysCount: number;
+}
+
+export interface StudyPlanExtendResponse {
+  newDays: Array<{
+    day: number;
+    title: string;
+    estimatedTime: string;
+    tasks: string[];
+    completed: boolean;
+  }>;
+}
+
+export interface StudyPlanEnhanceRequest {
+  existingPlan: StudyPlan;
+  newContent: string;
+}
+
+export interface StudyPlanEnhanceResponse {
+  updatedSchedule: Array<{
+    day: number;
+    title: string;
+    estimatedTime: string;
+    tasks: string[];
+    completed: boolean;
+    quiz?: any;
+  }>;
+}
+
 export class AIService {
   // Using Groq (Free tier available)
   private static readonly GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
   
   // Alternative: Using Together AI (Free tier)
+  
+  // Method to extend a study plan with additional days based on new content
+  static async extendStudyPlan(request: StudyPlanExtendRequest): Promise<StudyPlanExtendResponse> {
+    console.log('🔄 Starting AI study plan extension...');
+    
+    // Check subscription limits before proceeding
+    await this.checkAIRequestLimits();
+    
+    try {
+      // Extract topics from new content
+      const topics = this.extractTopicsFromContent(request.newContent);
+      
+      // Generate new days based on extracted topics
+      const existingDaysCount = request.currentDaysCount;
+      const newDaysCount = Math.min(3, Math.ceil(existingDaysCount / 3));
+      
+      const newDays = [];
+      for (let i = 0; i < newDaysCount; i++) {
+        const dayNum = existingDaysCount + i + 1;
+        const topicIndex = i % topics.length;
+        const topic = topics[topicIndex] || 'Extended Study';
+        
+        newDays.push({
+          day: dayNum,
+          title: `Exploring ${topic}`,
+          estimatedTime: '45 minutes',
+          tasks: [
+            `Review key concepts about ${topic}`,
+            `Take detailed notes on ${topic}`,
+            `Practice exercises related to ${topic}`,
+            `Create connections between ${topic} and previously studied material`
+          ],
+          completed: false
+        });
+      }
+      
+      // Track AI usage
+      await this.trackAIUsage();
+      
+      return { newDays };
+    } catch (error) {
+      console.error('Error extending study plan:', error);
+      throw error;
+    }
+  }
+  
+  // Method to enhance a study plan with insights from new content
+  static async enhanceStudyPlan(request: StudyPlanEnhanceRequest): Promise<StudyPlanEnhanceResponse> {
+    console.log('🤖 Starting AI study plan enhancement...');
+    
+    // Check subscription limits before proceeding
+    await this.checkAIRequestLimits();
+    
+    try {
+      // Extract topics from new content
+      const topics = this.extractTopicsFromContent(request.newContent);
+      
+      // Clone existing schedule to avoid direct mutation
+      const updatedSchedule = JSON.parse(JSON.stringify(request.existingPlan.schedule));
+      
+      // Enhance each day with additional tasks based on the new content
+      updatedSchedule.forEach((day: any, index: number) => {
+        const topicIndex = index % topics.length;
+        const topic = topics[topicIndex] || 'Supplementary Material';
+        
+        // Add 1-2 new tasks based on the topic and day content
+        day.tasks.push(
+          `Review additional information on ${topic} from new materials`,
+          `Create connections between ${topic} and the existing content`
+        );
+      });
+      
+      // Track AI usage
+      await this.trackAIUsage();
+      
+      return { updatedSchedule };
+    } catch (error) {
+      console.error('Error enhancing study plan:', error);
+      throw error;
+    }
+  }
   private static readonly TOGETHER_API_URL = 'https://api.together.xyz/v1/chat/completions';
 
   // Main method to generate study plan

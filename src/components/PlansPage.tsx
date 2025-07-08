@@ -278,7 +278,7 @@ const PlansPage: React.FC<PlansPageProps> = ({
                       </div>
                     </div>
 
-                    {plan.files.length > 0 && (
+                    {plan.files && plan.files.length > 0 && (
                       <div className="pt-2 border-t border-gray-100 dark:border-gray-700">
                         <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
                           {plan.files.length} file(s) attached
